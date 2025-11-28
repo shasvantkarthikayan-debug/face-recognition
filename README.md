@@ -1,27 +1,31 @@
 # face-recogintion
-🔍 Face Recognition using Python & MediaPipe
+Face Recognition System (MediaPipe + OpenCV)
 
-A simple and fast face-recognition system built using Python, MediaPipe, and OpenCV.
-It detects faces in real time and can be extended to do face matching, attendance, emotion detection, and more.
+A lightweight, fast, and beginner-friendly face recognition project built using MediaPipe, OpenCV, NumPy, and Python.
+This repo contains code for detecting faces in real-time through your webcam, extracting embeddings, and matching faces against a saved database.
 
 🚀 Features
 
-🔵 Real-time face detection
+🔍 Real-time face detection using MediaPipe Face Mesh / Face Detection
 
-⚡ Super fast (MediaPipe is crazy optimized)
+👤 Face recognition using embeddings + distance comparison
 
-👤 Detects multiple faces at once
+📸 Supports webcam input or pre-recorded videos
 
-🧠 Easy to extend for recognition/attendance
+💾 Automatically saves face encodings as NumPy arrays
 
-💻 Works on webcam feed or video files
+🎯 Lightweight, fast, and simple to understand
 
-📦 Tech Stack
+🧰 Zero deep-learning model training required
 
-Python 3.11
+🛠️ Tech Stack
+
+Python 3.x
 
 MediaPipe
 
 OpenCV
 
 NumPy
+
+(Optional) scikit-learn for improved distance metrics
