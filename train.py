@@ -3,9 +3,7 @@ import numpy as np
 import mediapipe as mp
 import os
 
-# -----------------------------
-# Teacher-friendly comments 😎
-# -----------------------------
+
 # This script reads all face images for each person,
 # computes embeddings using Mediapipe Face Mesh,
 # then averages them per person so recognition is more reliable.
@@ -76,3 +74,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
