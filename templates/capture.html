@@ -158,7 +158,7 @@
             <div class="input-group">
                 <label style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" id="quickMode" onchange="toggleQuickMode()" style="width: auto;">
-                    <span>Quick Capture Mode (Skip face detection for faster captures)</span>
+                    <span>⚡ Quick Mode (Skip validation - faster but still extracts face data)</span>
                 </label>
             </div>
             
@@ -197,15 +197,21 @@
         }
         
         // Show initial status
-        showStatus('⏳ Initializing camera...', 'success');
+        showStatus('⏳ Initializing...', 'success');
         debugLog('🔍 Starting initialization...');
         
         // Check if getUserMedia is supported
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            showStatus('❌ Camera not supported in this browser', 'error');
-            debugLog('❌ getUserMedia not supported');
+            showStatus('❌ Camera not supported - Open in Chrome/Edge/Firefox', 'error');
+            debugLog('❌ getUserMedia not supported - Use external browser!');
+            debugLog('💡 Press Ctrl+C on terminal and run: Start-Process "http://127.0.0.1:5000/capture"');
+            // Don't initialize camera if not supported
         } else {
             debugLog('✓ getUserMedia is supported');
+            // Initialize camera immediately
+            setTimeout(() => {
+                initCamera();
+            }, 100);
         }
         
         // Load face-api models
@@ -232,13 +238,25 @@
         
         // Start webcam
         async function initCamera() {
+            // Double-check support before proceeding
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showStatus('❌ Camera API not available in this browser', 'error');
+                debugLog('❌ Please open in external browser (Chrome/Edge/Firefox)');
+                return;
+            }
+            
             try {
                 debugLog('📹 Requesting camera permission...');
+                showStatus('📹 Requesting camera access...', 'success');
                 
                 // List available devices
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                debugLog(`Found ${videoDevices.length} video device(s)`);
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    debugLog(`Found ${videoDevices.length} video device(s)`);
+                } catch (e) {
+                    debugLog('⚠️ Could not enumerate devices: ' + e.message);
+                }
                 
                 const constraints = { 
                     video: { 
@@ -288,10 +306,8 @@
             }
         }
         
-        // Initialize camera on page load
-        setTimeout(() => {
-            initCamera();
-        }, 100);
+        // DON'T auto-initialize - let the check above handle it
+        // (removed the setTimeout call that was here)
         
         function toggleQuickMode() {
             quickMode = document.getElementById('quickMode').checked;
@@ -360,18 +376,12 @@
             
             let embedding;
             
-            // Quick mode: skip face detection
-            if (quickMode) {
-                embedding = new Array(128).fill(0).map(() => Math.random());
-                showStatus('⚡ Quick capture...', 'success');
-            }
-            // Extract real face embedding if models loaded and not in quick mode
-            else if (modelsLoaded) {
+            // Always try to extract real face embedding if models loaded
+            if (modelsLoaded) {
                 try {
-                    showStatus('📸 Detecting face...', 'success');
                     const options = new faceapi.TinyFaceDetectorOptions({ 
                         inputSize: 224,
-                        scoreThreshold: 0.3  // Lower threshold = less sensitive
+                        scoreThreshold: 0.25  // Very low threshold = detects more easily
                     });
                     const detection = await faceapi.detectSingleFace(video, options)
                         .withFaceLandmarks()
@@ -379,24 +389,37 @@
                     
                     if (detection) {
                         embedding = Array.from(detection.descriptor);
-                        console.log('✓ Face detected with confidence:', detection.detection.score);
-                        showStatus('✓ Face detected! Capturing...', 'success');
+                        console.log('✓ Face detected! Confidence:', detection.detection.score.toFixed(3));
+                        showStatus(quickMode ? '⚡ Quick capture with face data!' : '✓ Face detected! Capturing...', 'success');
                     } else {
-                        showStatus('⚠️ No face - Enable Quick Mode or adjust position', 'error');
-                        isCapturing = false;
-                        return;
+                        // In quick mode, still capture but warn; in normal mode, reject
+                        if (quickMode) {
+                            console.warn('⚠️ No face detected in Quick Mode - capturing anyway');
+                            // Use average random embedding (not ideal but works)
+                            embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
+                            showStatus('⚠️ No face detected - captured anyway (may not recognize well)', 'error');
+                        } else {
+                            showStatus('❌ No face detected - move closer or enable Quick Mode', 'error');
+                            isCapturing = false;
+                            return;
+                        }
                     }
                 } catch (err) {
                     console.error('Detection error:', err);
-                    showStatus('❌ Detection failed - try Quick Mode', 'error');
-                    isCapturing = false;
-                    return;
+                    if (quickMode) {
+                        embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
+                        showStatus('⚠️ Detection error - captured anyway', 'error');
+                    } else {
+                        showStatus('❌ Detection failed - try Quick Mode', 'error');
+                        isCapturing = false;
+                        return;
+                    }
                 }
             } else {
                 // If models aren't loaded yet, still capture with placeholder
-                embedding = new Array(128).fill(0).map(() => Math.random());
-                console.warn('Using placeholder embedding - models still loading');
-                showStatus('📸 Capturing...', 'success');
+                embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
+                console.warn('⚠️ Using placeholder embedding - models still loading');
+                showStatus('📸 Capturing (models loading)...', 'success');
             }
             
             // Send to server

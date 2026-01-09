@@ -204,7 +204,8 @@
                         descriptors
                     );
                 });
-                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+                // Lower threshold = more lenient matching (0.5 instead of 0.6)
+                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.55);
                 
                 // Start webcam
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
@@ -319,9 +320,9 @@
                         }
                         document.getElementById('accuracy').textContent = accuracy.toFixed(1) + '%';
                         
-                        // More lenient threshold - 0.6 instead of 0.7
+                        // Very lenient threshold for recognition
                         let currentLabel;
-                        if (bestMatch.label === 'unknown' || bestMatch.distance >= 0.6) {
+                        if (bestMatch.label === 'unknown' || bestMatch.distance >= 0.65) {
                             currentLabel = 'unknown';
                         } else {
                             currentLabel = bestMatch.label;
