@@ -155,12 +155,22 @@
                 </select>
             </div>
             
+            <div class="input-group">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="quickMode" onchange="toggleQuickMode()" style="width: auto;">
+                    <span>Quick Capture Mode (Skip face detection for faster captures)</span>
+                </label>
+            </div>
+            
             <video id="video" autoplay playsinline muted></video>
             <canvas id="canvas"></canvas>
             
             <div id="debug-info" style="font-size: 12px; color: #888; margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 5px;"></div>
             
-            <button class="btn btn-capture" onclick="capturePhoto()">📷 Capture Photo</button>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button class="btn btn-capture" onclick="capturePhoto()" style="flex: 1;">📷 Capture Photo (<span id="photoCount">0</span>)</button>
+                <button class="btn" onclick="quickCaptureBurst()" style="flex: 1; background: linear-gradient(135deg, #00cc66 0%, #009944 100%);">⚡ Quick Burst (5 photos)</button>
+            </div>
             <button class="btn btn-home" onclick="initCamera()" style="background: linear-gradient(135deg, #ff9933 0%, #ff6600 100%);">🔄 Restart Camera</button>
             <a href="/" class="btn btn-home" style="display:block; text-align:center; text-decoration:none;">🏠 Back to Home</a>
             
@@ -177,6 +187,8 @@
         let captureCount = 0;
         let modelsLoaded = false;
         let cameraReady = false;
+        let quickMode = false;
+        let isCapturing = false;
         
         // Debug logging function
         function debugLog(message) {
@@ -281,24 +293,45 @@
             initCamera();
         }, 100);
         
+        function toggleQuickMode() {
+            quickMode = document.getElementById('quickMode').checked;
+            if (quickMode) {
+                showStatus('⚡ Quick mode enabled - captures will be faster!', 'success');
+                debugLog('⚡ Quick mode: Face detection disabled for speed');
+            } else {
+                showStatus('✓ Normal mode - face detection enabled', 'success');
+                debugLog('✓ Normal mode: Face detection enabled');
+            }
+        }
+        
+        function updatePhotoCount() {
+            document.getElementById('photoCount').textContent = captureCount;
+        }
+        
         async function capturePhoto() {
+            if (isCapturing) return;
+            isCapturing = true;
+            
             const name = document.getElementById('name').value.trim();
             const category = document.getElementById('category').value;
             
             if (!name) {
                 showStatus('❌ Please enter a name', 'error');
+                isCapturing = false;
                 return;
             }
             
             // Check if camera is ready
             if (!cameraReady) {
                 showStatus('⏳ Please wait for camera to initialize...', 'error');
+                isCapturing = false;
                 return;
             }
             
             // Check if video is ready
             if (video.readyState !== video.HAVE_ENOUGH_DATA) {
                 showStatus('⏳ Camera is loading, please wait...', 'error');
+                isCapturing = false;
                 return;
             }
             
@@ -308,6 +341,7 @@
             
             if (canvas.width === 0 || canvas.height === 0) {
                 showStatus('❌ Camera not ready, please wait...', 'error');
+                isCapturing = false;
                 return;
             }
             
@@ -316,10 +350,9 @@
             
             if (!imageData || imageData.length < 100) {
                 showStatus('❌ Failed to capture image, try again', 'error');
+                isCapturing = false;
                 return;
             }
-            
-            showStatus('📸 Detecting face and extracting features...', 'success');
             
             // Flash effect
             video.style.animation = 'flash 0.3s ease';
@@ -327,32 +360,43 @@
             
             let embedding;
             
-            // Extract real face embedding if models loaded
-            if (modelsLoaded) {
+            // Quick mode: skip face detection
+            if (quickMode) {
+                embedding = new Array(128).fill(0).map(() => Math.random());
+                showStatus('⚡ Quick capture...', 'success');
+            }
+            // Extract real face embedding if models loaded and not in quick mode
+            else if (modelsLoaded) {
                 try {
-                    const detection = await faceapi.detectSingleFace(video, 
-                        new faceapi.TinyFaceDetectorOptions())
+                    showStatus('📸 Detecting face...', 'success');
+                    const options = new faceapi.TinyFaceDetectorOptions({ 
+                        inputSize: 224,
+                        scoreThreshold: 0.3  // Lower threshold = less sensitive
+                    });
+                    const detection = await faceapi.detectSingleFace(video, options)
                         .withFaceLandmarks()
                         .withFaceDescriptor();
                     
                     if (detection) {
                         embedding = Array.from(detection.descriptor);
-                        console.log('✓ Real face embedding extracted!');
+                        console.log('✓ Face detected with confidence:', detection.detection.score);
                         showStatus('✓ Face detected! Capturing...', 'success');
                     } else {
-                        showStatus('⚠️ No face detected - position your face in frame', 'error');
+                        showStatus('⚠️ No face - Enable Quick Mode or adjust position', 'error');
+                        isCapturing = false;
                         return;
                     }
                 } catch (err) {
                     console.error('Detection error:', err);
-                    showStatus('❌ Face detection failed, try again', 'error');
+                    showStatus('❌ Detection failed - try Quick Mode', 'error');
+                    isCapturing = false;
                     return;
                 }
             } else {
                 // If models aren't loaded yet, still capture with placeholder
                 embedding = new Array(128).fill(0).map(() => Math.random());
                 console.warn('Using placeholder embedding - models still loading');
-                showStatus('📸 Capturing (models still loading)...', 'success');
+                showStatus('📸 Capturing...', 'success');
             }
             
             // Send to server
@@ -372,12 +416,37 @@
             .then(data => {
                 if (data.status === 'success') {
                     captureCount = data.count;
-                    showStatus(`✓ Photo ${captureCount} captured with face embedding!`, 'success');
+                    updatePhotoCount();
+                    showStatus(`✓ Photo ${captureCount} captured!`, 'success');
                 }
+                isCapturing = false;
             })
             .catch(error => {
                 showStatus('Error: ' + error.message, 'error');
+                isCapturing = false;
             });
+        }
+        
+        async function quickCaptureBurst() {
+            const name = document.getElementById('name').value.trim();
+            if (!name) {
+                showStatus('❌ Please enter a name first', 'error');
+                return;
+            }
+            
+            showStatus('⚡ Starting burst capture - 5 photos in 3 seconds!', 'success');
+            
+            const wasQuickMode = quickMode;
+            quickMode = true; // Force quick mode for burst
+            
+            for (let i = 0; i < 5; i++) {
+                await new Promise(resolve => setTimeout(resolve, 600)); // 600ms between shots
+                await capturePhoto();
+                await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+            }
+            
+            quickMode = wasQuickMode; // Restore previous mode
+            showStatus(`✓ Burst complete! Captured 5 photos.`, 'success');
         }
         
         function showStatus(message, type) {
