@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FacePass - Recognition</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -121,7 +122,25 @@
                 <p>Video feed will appear here</p>
             </div>
             
-            <img id="video-feed" src="" alt="Video Feed">
+            <video id="video" autoplay style="width: 100%; border-radius: 10px; margin-bottom: 20px; display: none;"></video>
+            <canvas id="canvas" style="position: absolute; top: 0; left: 0;"></canvas>
+            
+            <div id="stats" style="background: rgba(30, 30, 45, 0.9); padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none;">
+                <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #4dbb6f;" id="correct-count">0</div>
+                        <div style="color: #8ab4f8;">Recognized</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #cc3366;" id="unknown-count">0</div>
+                        <div style="color: #8ab4f8;">Unknown</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #3399ff;" id="accuracy">0%</div>
+                        <div style="color: #8ab4f8;">Accuracy</div>
+                    </div>
+                </div>
+            </div>
             
             <button class="btn btn-start" id="start-btn" onclick="startRecognition()">▶️ Start Recognition</button>
             <button class="btn btn-stop" id="stop-btn" onclick="stopRecognition()">⏹️ Stop Recognition</button>
@@ -130,48 +149,147 @@
     </div>
     
     <script>
-        function startRecognition() {
-            fetch('/start_recognition', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+        let video, canvas, ctx;
+        let modelsLoaded = false;
+        let isRecognizing = false;
+        let labeledDescriptors = [];
+        let faceMatcher;
+        let correctCount = 0;
+        let unknownCount = 0;
+        
+        // Load models on page load
+        window.addEventListener('load', async () => {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            
+            try {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+                    faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+                    faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')
+                ]);
+                modelsLoaded = true;
+                console.log('Models loaded successfully');
+            } catch (err) {
+                alert('Error loading face recognition models: ' + err.message);
+            }
+        });
+        
+        async function startRecognition() {
+            if (!modelsLoaded) {
+                alert('Please wait, models are still loading...');
+                return;
+            }
+            
+            // Fetch trained data from server
+            try {
+                const response = await fetch('/get_trained_data');
+                const data = await response.json();
+                
+                if (!data.embeddings || data.embeddings.length === 0) {
+                    alert('No trained data found! Please capture and train faces first.');
+                    return;
                 }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'started') {
-                    document.getElementById('video-feed').src = '/video_feed';
-                    document.getElementById('video-feed').style.display = 'block';
-                    document.getElementById('placeholder').style.display = 'none';
-                    document.getElementById('start-btn').style.display = 'none';
-                    document.getElementById('stop-btn').style.display = 'block';
-                }
-            })
-            .catch(error => {
-                alert('Error starting recognition: ' + error.message);
-            });
+                
+                // Create labeled descriptors
+                labeledDescriptors = data.embeddings.map((item, idx) => {
+                    const descriptors = item.embedding.map(emb => new Float32Array(emb));
+                    return new faceapi.LabeledFaceDescriptors(
+                        `${data.names[idx]} (${data.categories[idx]})`,
+                        descriptors
+                    );
+                });
+                
+                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+                
+                // Start webcam
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                document.getElementById('placeholder').style.display = 'none';
+                document.getElementById('start-btn').style.display = 'none';
+                document.getElementById('stop-btn').style.display = 'block';
+                document.getElementById('stats').style.display = 'block';
+                
+                isRecognizing = true;
+                detectFaces();
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function detectFaces() {
+            if (!isRecognizing) return;
+            
+            if (video.readyState === 4) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw detections
+                detections.forEach(detection => {
+                    const result = faceMatcher.findBestMatch(detection.descriptor);
+                    const box = detection.detection.box;
+                    
+                    let color, label;
+                    if (result.label !== 'unknown') {
+                        color = '#4dbb6f'; // Green
+                        label = result.label;
+                        correctCount++;
+                    } else {
+                        color = '#cc3366'; // Red
+                        label = 'Unknown';
+                        unknownCount++;
+                    }
+                    
+                    // Draw box
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(box.x, box.y, box.width, box.height);
+                    
+                    // Draw label
+                    ctx.fillStyle = color;
+                    ctx.fillRect(box.x, box.y - 30, box.width, 30);
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(label, box.x + 5, box.y - 10);
+                });
+                
+                // Update stats
+                const total = correctCount + unknownCount;
+                const accuracy = total > 0 ? ((correctCount / total) * 100).toFixed(1) : 0;
+                document.getElementById('correct-count').textContent = correctCount;
+                document.getElementById('unknown-count').textContent = unknownCount;
+                document.getElementById('accuracy').textContent = accuracy + '%';
+            }
+            
+            requestAnimationFrame(detectFaces);
         }
         
         function stopRecognition() {
-            fetch('/stop_recognition', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'stopped') {
-                    document.getElementById('video-feed').style.display = 'none';
-                    document.getElementById('placeholder').style.display = 'block';
-                    document.getElementById('start-btn').style.display = 'block';
-                    document.getElementById('stop-btn').style.display = 'none';
-                    document.getElementById('video-feed').src = '';
-                }
-            })
-            .catch(error => {
-                alert('Error stopping recognition: ' + error.message);
-            });
+            isRecognizing = false;
+            
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            
+            video.style.display = 'none';
+            document.getElementById('placeholder').style.display = 'block';
+            document.getElementById('start-btn').style.display = 'block';
+            document.getElementById('stop-btn').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            correctCount = 0;
+            unknownCount = 0;
         }
     </script>
 </body>

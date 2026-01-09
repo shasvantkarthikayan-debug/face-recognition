@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FacePass - Capture</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -151,6 +152,19 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let captureCount = 0;
+        let modelsLoaded = false;
+        
+        // Load face-api.js models
+        Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+            faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+            faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')
+        ]).then(() => {
+            modelsLoaded = true;
+            showStatus('✓ Face detection ready!', 'success');
+        }).catch(err => {
+            showStatus('Error loading models: ' + err.message, 'error');
+        });
         
         // Start webcam
         navigator.mediaDevices.getUserMedia({ video: true })
@@ -161,7 +175,7 @@
                 showStatus('Error accessing camera: ' + err.message, 'error');
             });
         
-        function capturePhoto() {
+        async function capturePhoto() {
             const name = document.getElementById('name').value.trim();
             const category = document.getElementById('category').value;
             
@@ -170,12 +184,33 @@
                 return;
             }
             
+            if (!modelsLoaded) {
+                showStatus('Please wait, models are loading...', 'error');
+                return;
+            }
+            
+            showStatus('📸 Detecting face...', 'success');
+            
+            // Detect face and get descriptor (embedding)
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+            
+            if (!detection) {
+                showStatus('❌ No face detected! Please face the camera.', 'error');
+                return;
+            }
+            
+            // Get face embedding (descriptor)
+            const embedding = Array.from(detection.descriptor);
+            
+            // Capture image for storage
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0);
-            
             const imageData = canvas.toDataURL('image/jpeg');
             
+            // Send to server
             fetch('/capture_photo', {
                 method: 'POST',
                 headers: {
@@ -184,14 +219,15 @@
                 body: JSON.stringify({
                     name: name,
                     category: category,
-                    image: imageData
+                    image: imageData,
+                    embedding: embedding
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     captureCount = data.count;
-                    showStatus(`✓ Photo ${captureCount} captured successfully!`, 'success');
+                    showStatus(`✓ Photo ${captureCount} captured with face embedding!`, 'success');
                 }
             })
             .catch(error => {
@@ -204,8 +240,10 @@
             statusDiv.textContent = message;
             statusDiv.className = 'status ' + type;
             setTimeout(() => {
-                statusDiv.className = 'status';
-                statusDiv.textContent = '';
+                if (!message.includes('ready')) {
+                    statusDiv.className = 'status';
+                    statusDiv.textContent = '';
+                }
             }, 3000);
         }
     </script>

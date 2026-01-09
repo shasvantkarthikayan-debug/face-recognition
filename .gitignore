@@ -19,6 +19,7 @@ known_faces/
 encodings.npy
 names.npy
 categories.npy
+face_data.json
 
 # IDE
 .vscode/
