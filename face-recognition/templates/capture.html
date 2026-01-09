@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capture Faces - FacePass</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="title-card">
+            <h1>📸 Capture Faces</h1>
+            <p>Capture images for training the face recognition model.</p>
+        </div>
+        
+        <div class="video-container">
+            <video id="video" width="100%" autoplay></video>
+        </div>
+        
+        <div class="button-card">
+            <button id="capture" class="btn btn-capture">Capture Photo</button>
+        </div>
+        
+        <div class="footer">
+            Powered by MediaPipe & Flask
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

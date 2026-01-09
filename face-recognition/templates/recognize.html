@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FacePass - Recognition</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="title-card">
+            <h1>🔍 Start Recognition</h1>
+            <p>Click the button below to start face recognition.</p>
+        </div>
+        
+        <div class="button-card">
+            <button id="start-recognition" class="btn btn-recognize">Start Recognition</button>
+            <button id="stop-recognition" class="btn btn-recognize" style="display: none;">Stop Recognition</button>
+        </div>
+        
+        <div class="video-container">
+            <img id="video-feed" src="" alt="Video Feed" />
+        </div>
+        
+        <div class="footer">
+            Powered by MediaPipe & Flask
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
