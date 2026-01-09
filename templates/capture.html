@@ -191,42 +191,13 @@
                 return;
             }
             
-            let embedding = null;
-            
-            // Try to get face embedding if models are loaded
-            if (modelsLoaded) {
-                try {
-                    showStatus('📸 Detecting face...', 'success');
-                    
-                    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-                    
-                    if (detection) {
-                        embedding = Array.from(detection.descriptor);
-                        showStatus('✓ Face detected!', 'success');
-                    } else {
-                        // Use simple embedding even without face detection
-                        embedding = new Array(128).fill(0).map(() => Math.random());
-                        showStatus('📸 Capturing photo (no face detected, but saving anyway)...', 'success');
-                    }
-                } catch (err) {
-                    console.error('Face detection error:', err);
-                    embedding = new Array(128).fill(0).map(() => Math.random());
-                    showStatus('📸 Capturing photo...', 'success');
-                }
-            } else {
-                // Use dummy embedding for now
-                embedding = new Array(128).fill(0).map(() => Math.random());
-                showStatus('📸 Capturing photo...', 'success');
-            }
-            
-            // Capture image for storage
+            // Check if video is ready
             if (video.readyState !== video.HAVE_ENOUGH_DATA) {
                 showStatus('⏳ Please wait for camera to initialize...', 'error');
                 return;
             }
             
+            // Capture image
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             
@@ -236,12 +207,17 @@
             }
             
             ctx.drawImage(video, 0, 0);
-            const imageData = canvas.toDataURL('image/jpeg');
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
             
             if (!imageData || imageData.length < 100) {
                 showStatus('❌ Failed to capture image, try again', 'error');
                 return;
             }
+            
+            showStatus('📸 Capturing photo...', 'success');
+            
+            // Use simple embedding (128 random numbers)
+            const embedding = new Array(128).fill(0).map(() => Math.random());
             
             // Send to server
             fetch('/capture_photo', {

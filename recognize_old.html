@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FacePass - Recognition</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .card {
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        #video-feed {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-start {
+            background: linear-gradient(135deg, #4dbb6f 0%, #2d8a4f 100%);
+            color: white;
+        }
+        
+        .btn-stop {
+            background: linear-gradient(135deg, #cc3366 0%, #991144 100%);
+            color: white;
+            display: none;
+        }
+        
+        .btn-home {
+            background: linear-gradient(135deg, #666 0%, #444 100%);
+            color: white;
+        }
+        
+        .info {
+            background: rgba(51, 153, 255, 0.2);
+            border-left: 4px solid #3399ff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        
+        .placeholder {
+            background: rgba(30, 30, 45, 0.8);
+            border: 2px dashed #415a77;
+            border-radius: 10px;
+            padding: 60px;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #778899;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Face Recognition</h1>
+            <p>Real-time face recognition system</p>
+        </div>
+        
+        <div class="card">
+            <div class="info">
+                <strong>ℹ️ Instructions:</strong><br>
+                Click "Start Recognition" to begin real-time face detection and recognition. The system will identify known faces and display accuracy metrics.
+            </div>
+            
+            <div class="placeholder" id="placeholder">
+                <h2>📹</h2>
+                <p>Video feed will appear here</p>
+            </div>
+            
+            <video id="video" autoplay style="width: 100%; border-radius: 10px; margin-bottom: 20px; display: none;"></video>
+            <canvas id="canvas" style="position: absolute; top: 0; left: 0;"></canvas>
+            
+            <div id="stats" style="background: rgba(30, 30, 45, 0.9); padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none;">
+                <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #4dbb6f;" id="correct-count">0</div>
+                        <div style="color: #8ab4f8;">Recognized</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #cc3366;" id="unknown-count">0</div>
+                        <div style="color: #8ab4f8;">Unknown</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #3399ff;" id="accuracy">0%</div>
+                        <div style="color: #8ab4f8;">Accuracy</div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn btn-start" id="start-btn" onclick="startRecognition()">▶️ Start Recognition</button>
+            <button class="btn btn-stop" id="stop-btn" onclick="stopRecognition()">⏹️ Stop Recognition</button>
+            <a href="/" class="btn btn-home">🏠 Back to Home</a>
+        </div>
+    </div>
+    
+    <script>
+        let video, canvas, ctx;
+        let modelsLoaded = false;
+        let isRecognizing = false;
+        let labeledDescriptors = [];
+        let faceMatcher;
+        let correctCount = 0;
+        let unknownCount = 0;
+        
+        // Load models on page load
+        window.addEventListener('load', async () => {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            
+            try {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+                    faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+                    faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')
+                ]);
+                modelsLoaded = true;
+                console.log('Models loaded successfully');
+            } catch (err) {
+                alert('Error loading face recognition models: ' + err.message);
+            }
+        });
+        
+        async function startRecognition() {
+            if (!modelsLoaded) {
+                alert('Please wait, models are still loading...');
+                return;
+            }
+            
+            // Fetch trained data from server
+            try {
+                const response = await fetch('/get_trained_data');
+                const data = await response.json();
+                
+                console.log('Received data:', data);
+                
+                if (!data.embeddings || data.embeddings.length === 0) {
+                    alert('No trained data found! Please capture and train faces first.');
+                    return;
+                }
+                
+                // Create labeled descriptors
+                labeledDescriptors = data.embeddings.map((embeddingList, idx) => {
+                    // embeddingList is an array of embeddings for one person
+                    if (!embeddingList || !Array.isArray(embeddingList) || embeddingList.length === 0) {
+                        return null;
+                    }
+                    
+                    const descriptors = embeddingList.map(emb => {
+                        if (!emb || !Array.isArray(emb)) {
+                            return null;
+                        }
+                        return new Float32Array(emb);
+                    }).filter(d => d !== null);
+                    
+                    if (descriptors.length === 0) {
+                        return null;
+                    }
+                    
+                    return new faceapi.LabeledFaceDescriptors(
+                        `${data.names[idx]} (${data.categories[idx]})`,
+                        descriptors
+                    );
+                }).filter(d => d !== null);
+                    );
+                });
+                
+                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+                
+                // Start webcam
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                document.getElementById('placeholder').style.display = 'none';
+                document.getElementById('start-btn').style.display = 'none';
+                document.getElementById('stop-btn').style.display = 'block';
+                document.getElementById('stats').style.display = 'block';
+                
+                isRecognizing = true;
+                detectFaces();
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function detectFaces() {
+            if (!isRecognizing) return;
+            
+            if (video.readyState === 4) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw detections
+                detections.forEach(detection => {
+                    const result = faceMatcher.findBestMatch(detection.descriptor);
+                    const box = detection.detection.box;
+                    
+                    let color, label;
+                    if (result.label !== 'unknown') {
+                        color = '#4dbb6f'; // Green
+                        label = result.label;
+                        correctCount++;
+                    } else {
+                        color = '#cc3366'; // Red
+                        label = 'Unknown';
+                        unknownCount++;
+                    }
+                    
+                    // Draw box
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(box.x, box.y, box.width, box.height);
+                    
+                    // Draw label
+                    ctx.fillStyle = color;
+                    ctx.fillRect(box.x, box.y - 30, box.width, 30);
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(label, box.x + 5, box.y - 10);
+                });
+                
+                // Update stats
+                const total = correctCount + unknownCount;
+                const accuracy = total > 0 ? ((correctCount / total) * 100).toFixed(1) : 0;
+                document.getElementById('correct-count').textContent = correctCount;
+                document.getElementById('unknown-count').textContent = unknownCount;
+                document.getElementById('accuracy').textContent = accuracy + '%';
+            }
+            
+            requestAnimationFrame(detectFaces);
+        }
+        
+        function stopRecognition() {
+            isRecognizing = false;
+            
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            
+            video.style.display = 'none';
+            document.getElementById('placeholder').style.display = 'block';
+            document.getElementById('start-btn').style.display = 'block';
+            document.getElementById('stop-btn').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            correctCount = 0;
+            unknownCount = 0;
+        }
+    </script>
+</body>
+</html>
