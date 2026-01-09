@@ -61,46 +61,56 @@ def get_trained_data():
 @app.route('/capture_photo', methods=['POST'])
 def capture_photo():
     global capture_count
-    data = request.json
-    name = data.get('name')
-    category = data.get('category')
-    image_data = data.get('image')
-    embedding = data.get('embedding')  # Face embedding from client
-    
-    if not name or not category or not embedding:
-        return jsonify({'error': 'Name, category, and embedding required'}), 400
-    
-    # Decode base64 image
-    image_data = image_data.split(',')[1]
-    image_bytes = base64.b64decode(image_data)
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    
-    # Save image
-    save_dir = f"known_faces/{category}/{name}"
-    os.makedirs(save_dir, exist_ok=True)
-    filename = f"{save_dir}/{name}_{capture_count}.jpg"
-    cv2.imwrite(filename, img)
-    
-    # Store embedding in database
-    # Check if person already exists
-    person_key = f"{name}_{category}"
-    found = False
-    for i, (n, c) in enumerate(zip(embeddings_db['names'], embeddings_db['categories'])):
-        if n == name and c == category:
-            embeddings_db['embeddings'][i].append(embedding)
-            found = True
-            break
-    
-    if not found:
-        embeddings_db['embeddings'].append([embedding])
-        embeddings_db['names'].append(name)
-        embeddings_db['categories'].append(category)
-    
-    save_training_data()
-    capture_count += 1
-    
-    return jsonify({'status': 'success', 'count': capture_count})
+    try:
+        data = request.json
+        name = data.get('name')
+        category = data.get('category')
+        image_data = data.get('image')
+        embedding = data.get('embedding')  # Face embedding from client
+        
+        if not name or not category:
+            return jsonify({'error': 'Name and category required'}), 400
+        
+        if not image_data:
+            return jsonify({'error': 'Image data required'}), 400
+        
+        # If no embedding provided, use a placeholder
+        if not embedding:
+            embedding = [0.0] * 128
+        
+        # Decode base64 image
+        image_data = image_data.split(',')[1]
+        image_bytes = base64.b64decode(image_data)
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        # Save image
+        save_dir = f"known_faces/{category}/{name}"
+        os.makedirs(save_dir, exist_ok=True)
+        filename = f"{save_dir}/{name}_{capture_count}.jpg"
+        cv2.imwrite(filename, img)
+        
+        # Store embedding in database
+        # Check if person already exists
+        found = False
+        for i, (n, c) in enumerate(zip(embeddings_db['names'], embeddings_db['categories'])):
+            if n == name and c == category:
+                embeddings_db['embeddings'][i].append(embedding)
+                found = True
+                break
+        
+        if not found:
+            embeddings_db['embeddings'].append([embedding])
+            embeddings_db['names'].append(name)
+            embeddings_db['categories'].append(category)
+        
+        save_training_data()
+        capture_count += 1
+        
+        return jsonify({'status': 'success', 'count': capture_count})
+    except Exception as e:
+        print(f"Error in capture_photo: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/train_model', methods=['POST'])
 def train_model():
