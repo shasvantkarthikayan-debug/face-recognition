@@ -1,31 +1,43 @@
-# face-recogintion
-Face Recognition System (MediaPipe + OpenCV)
+# Face Recognition (MediaPipe + OpenCV)
 
-A lightweight, fast, and beginner-friendly face recognition project built using MediaPipe, OpenCV, NumPy, and Python.
-This repo contains code for detecting faces in real-time through your webcam, extracting embeddings, and matching faces against a saved database.
+A lightweight facial recognition system built using **MediaPipe**, **OpenCV**, and **NumPy**.  
+The system performs real-time face detection from a webcam feed and recognizes identities using stored face embeddings — no deep learning model training required.
 
-🚀 Features
+---
 
-🔍 Real-time face detection using MediaPipe Face Mesh / Face Detection
+## 🚀 Features
 
-👤 Face recognition using embeddings + distance comparison
+- 🔍 **Real-time face detection** using MediaPipe Face Detection / Face Mesh
+- 👤 **Face recognition** via embedding extraction + distance matching
+- 🎥 **Webcam + video stream support**
+- 💾 **Embedding persistence** (saved as `.npy` arrays)
+- 🧠 **No model training required**
+- 🎯 **Fast & lightweight** — runs on CPU
+- 🧩 **Beginner-friendly codebase**
+- 📝 Modular design for experimentation
 
-📸 Supports webcam input or pre-recorded videos
+---
 
-💾 Automatically saves face encodings as NumPy arrays
+## 🛠 Tech Stack
 
-🎯 Lightweight, fast, and simple to understand
+- **Python 3.x**
+- **MediaPipe**
+- **OpenCV**
+- **NumPy**
+- _(Optional)_ **scikit-learn** for improved similarity metrics
 
-🧰 Zero deep-learning model training required
+---
 
-🛠️ Tech Stack
+## 🧱 System Overview
 
-Python 3.x
+The recognition pipeline works as follows:
 
-MediaPipe
+1. MediaPipe detects and tracks face landmarks
+2. A feature embedding is generated for each detected face
+3. Embeddings are compared with saved vectors
+4. Identity is predicted using distance thresholds
 
-OpenCV
+---
 
-NumPy
+## 📁 Project Structure
 
-(Optional) scikit-learn for improved distance metrics
