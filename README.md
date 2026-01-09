@@ -1,43 +1,33 @@
-# Face Recognition (MediaPipe + OpenCV)
+# FacePass — Browser-based Face Recognition (face-api.js + Flask)
 
-A lightweight facial recognition system built using **MediaPipe**, **OpenCV**, and **NumPy**.  
-The system performs real-time face detection from a webcam feed and recognizes identities using stored face embeddings — no deep learning model training required.
+FacePass is a hybrid real-time facial recognition system.  
+The browser handles face detection & embedding extraction using **face-api.js**, while a lightweight **Flask** backend performs identity matching using stored embeddings.
+
+This approach requires **no GPU**, works in real-time on standard hardware, and does not require training a deep learning model locally.
 
 ---
 
 ## 🚀 Features
 
-- 🔍 **Real-time face detection** using MediaPipe Face Detection / Face Mesh
-- 👤 **Face recognition** via embedding extraction + distance matching
-- 🎥 **Webcam + video stream support**
-- 💾 **Embedding persistence** (saved as `.npy` arrays)
-- 🧠 **No model training required**
-- 🎯 **Fast & lightweight** — runs on CPU
-- 🧩 **Beginner-friendly codebase**
-- 📝 Modular design for experimentation
+- 🔍 Real-time face detection (client-side)
+- 👤 128-D face embeddings extracted in browser via face-api.js
+- 🌐 WebRTC webcam streaming
+- 🧠 Identity matching via Flask backend
+- 💾 Embedding storage as `.npy` or JSON for persistence
+- 🎯 Runs on CPU (no GPU needed)
+- 🧩 Lightweight codebase — easy to understand & modify
+- 🔐 No cloud APIs, all inference handled locally
 
 ---
 
 ## 🛠 Tech Stack
 
-- **Python 3.x**
-- **MediaPipe**
-- **OpenCV**
-- **NumPy**
-- _(Optional)_ **scikit-learn** for improved similarity metrics
+**Client**
+- face-api.js (TensorFlow.js)
+- WebRTC
+- HTML/CSS/JS
 
----
-
-## 🧱 System Overview
-
-The recognition pipeline works as follows:
-
-1. MediaPipe detects and tracks face landmarks
-2. A feature embedding is generated for each detected face
-3. Embeddings are compared with saved vectors
-4. Identity is predicted using distance thresholds
-
----
-
-## 📁 Project Structure
-
+**Backend**
+- Flask (Python)
+- NumPy
+- Scikit-Learn (optional for metrics)
