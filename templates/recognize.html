@@ -136,25 +136,20 @@
                 return;
             }
             
-            // Load models
+            // Load models in parallel for faster loading
             try {
-                addStatus('Loading detector model...');
+                addStatus('⚡ Loading models in parallel...');
                 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
                 
-                await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-                addStatus('✓ Detector loaded');
-                
-                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-                addStatus('✓ Tiny detector loaded');
-                
-                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-                addStatus('✓ Landmarks loaded');
-                
-                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-                addStatus('✓ Recognition loaded');
+                // Load all models at once instead of one by one
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
                 
                 modelsLoaded = true;
-                addStatus('🎉 ALL READY!');
+                addStatus('🎉 ALL READY! (loaded in parallel)');
                 
                 document.getElementById('info-box').innerHTML = 
                     '<strong>✓ Models Ready!</strong><br>Click START to begin detection';
@@ -271,22 +266,14 @@
             }
             
             try {
-                // Try TinyFaceDetector first (better for various conditions)
-                let detections = await faceapi.detectAllFaces(video, 
+                // Use only TinyFaceDetector (faster, lighter)
+                const detections = await faceapi.detectAllFaces(video, 
                     new faceapi.TinyFaceDetectorOptions({ 
-                        inputSize: 320,
-                        scoreThreshold: 0.3 
+                        inputSize: 224,  // Smaller = faster
+                        scoreThreshold: 0.25  // Lower = more sensitive
                     }))
                     .withFaceLandmarks()
                     .withFaceDescriptors();
-                
-                // If no faces found, try SSD with very low threshold
-                if (detections.length === 0) {
-                    detections = await faceapi.detectAllFaces(video, 
-                        new faceapi.SsdMobilenetv1Options({ minConfidence: 0.1 }))
-                        .withFaceLandmarks()
-                        .withFaceDescriptors();
-                }
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
