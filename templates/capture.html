@@ -68,6 +68,12 @@
             width: 100%;
             border-radius: 10px;
             margin-bottom: 20px;
+            background: #000;
+            min-height: 400px;
+        }
+        
+        #canvas {
+            display: none;
         }
         
         .btn {
@@ -137,12 +143,8 @@
                 </select>
             </div>
             
-            <video id="video" autoplay></video>
-            <canvas id="canvas" style="display:none;"></canvas>
-            
-            <div id="model-status" style="background: rgba(51, 153, 255, 0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
-                <span id="model-text">⏳ Loading face detection...</span>
-            </div>
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
             
             <button class="btn btn-capture" onclick="capturePhoto()">📷 Capture Photo</button>
             <a href="/" class="btn btn-home" style="display:block; text-align:center; text-decoration:none;">🏠 Back to Home</a>
@@ -152,41 +154,33 @@
     </div>
     
     <script>
+        console.log('Page loaded!');
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let captureCount = 0;
-        let modelsLoaded = false;
         
         // Start webcam immediately
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-                showStatus('📹 Camera ready!', 'success');
-                document.getElementById('model-text').textContent = '⏳ Loading face detection models...';
-            })
-            .catch(err => {
-                showStatus('Error accessing camera: ' + err.message, 'error');
-            });
-        
-        // Load face-api.js models in background
-        setTimeout(() => {
-            Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
-                faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
-                faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')
-            ]).then(() => {
-                modelsLoaded = true;
-                showStatus('✓ Face detection ready!', 'success');
-                document.getElementById('model-status').style.background = 'rgba(77, 187, 111, 0.3)';
-                document.getElementById('model-text').textContent = '✓ Face detection enabled';
-            }).catch(err => {
-                console.error('Model loading error:', err);
-                showStatus('⚠️ Using basic mode (photos will still be saved)', 'success');
-                document.getElementById('model-status').style.background = 'rgba(204, 204, 102, 0.3)';
-                document.getElementById('model-text').textContent = '⚠️ Basic mode (photos will be saved)';
-            });
-        }, 500);
+        console.log('Requesting camera access...');
+        navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            } 
+        })
+        .then(stream => {
+            console.log('Camera access granted!');
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                console.log('Video ready!');
+                video.play();
+                showStatus('✓ Camera ready! You can start capturing.', 'success');
+            };
+        })
+        .catch(err => {
+            console.error('Camera error:', err);
+            showStatus('Error: ' + err.message, 'error');
+        });
         
         async function capturePhoto() {
             const name = document.getElementById('name').value.trim();
@@ -228,10 +222,26 @@
             }
             
             // Capture image for storage
+            if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+                showStatus('⏳ Please wait for camera to initialize...', 'error');
+                return;
+            }
+            
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            
+            if (canvas.width === 0 || canvas.height === 0) {
+                showStatus('❌ Camera not ready, please wait...', 'error');
+                return;
+            }
+            
             ctx.drawImage(video, 0, 0);
             const imageData = canvas.toDataURL('image/jpeg');
+            
+            if (!imageData || imageData.length < 100) {
+                showStatus('❌ Failed to capture image, try again', 'error');
+                return;
+            }
             
             // Send to server
             fetch('/capture_photo', {

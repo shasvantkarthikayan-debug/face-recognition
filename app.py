@@ -79,10 +79,17 @@ def capture_photo():
             embedding = [0.0] * 128
         
         # Decode base64 image
-        image_data = image_data.split(',')[1]
-        image_bytes = base64.b64decode(image_data)
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        try:
+            if ',' in image_data:
+                image_data = image_data.split(',')[1]
+            image_bytes = base64.b64decode(image_data)
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if img is None:
+                return jsonify({'error': 'Failed to decode image'}), 400
+        except Exception as e:
+            return jsonify({'error': f'Image decode error: {str(e)}'}), 400
         
         # Save image
         save_dir = f"known_faces/{category}/{name}"
