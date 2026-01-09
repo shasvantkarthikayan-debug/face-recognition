@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FacePass - Recognition</title>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -18,7 +19,9 @@
             background: rgba(20, 20, 35, 0.95); border-radius: 20px;
             padding: 30px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
-        #video { width: 100%; border-radius: 10px; margin-bottom: 20px; display: none; background: #000; }
+        #video { width: 100%; border-radius: 10px; display: block; background: #000; }
+        #canvas { position: absolute; top: 0; left: 0; width: 100%; border-radius: 10px; pointer-events: none; }
+        .video-container { position: relative; margin-bottom: 20px; display: none; }
         .btn {
             width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px;
             font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;
@@ -41,7 +44,7 @@
             background: rgba(30, 30, 45, 0.9); padding: 15px;
             border-radius: 10px; margin-bottom: 20px; display: none;
         }
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center; }
         .stat-value { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
         .stat-label { color: #8ab4f8; font-size: 14px; }
     </style>
@@ -55,7 +58,10 @@
         
         <div class="card">
             <div class="info" id="info-box">
-                <strong>ℹ️ Loading...</strong><br>Checking for trained data...
+                <strong>⏳ Loading...</strong><br>
+                <div id="status-details" style="margin-top: 10px; font-family: monospace; font-size: 12px;">
+                    Checking face-api library...<br>
+                </div>
             </div>
             
             <div class="placeholder" id="placeholder">
@@ -63,12 +69,16 @@
                 <p>Click Start to view webcam</p>
             </div>
             
-            <video id="video" autoplay playsinline></video>
+            <div class="video-container" style="display:none;" id="video-container">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
             
             <div class="stats" id="stats">
                 <div class="stats-grid">
                     <div><div class="stat-value" style="color: #4dbb6f;" id="people-count">0</div><div class="stat-label">People</div></div>
                     <div><div class="stat-value" style="color: #3399ff;" id="photos-count">0</div><div class="stat-label">Photos</div></div>
+                    <div><div class="stat-value" style="color: #ff9800;" id="accuracy">--</div><div class="stat-label">Accuracy</div></div>
                     <div><div class="stat-value" style="color: #8ab4f8;">Active</div><div class="stat-label">Status</div></div>
                 </div>
             </div>
@@ -80,10 +90,65 @@
     </div>
     
     <script>
-        let video, trainedData = null;
+        let video, canvas, ctx, trainedData = null, faceMatcher = null, isRecognizing = false;
+        let modelsLoaded = false;
+        let statusDiv;
+        let lastLabel = null;
+        let labelStability = 0;
+        const STABILITY_THRESHOLD = 3; // Need 3 consecutive frames to switch labels
+        
+        function addStatus(msg) {
+            console.log(msg);
+            if (statusDiv) statusDiv.innerHTML += msg + '<br>';
+        }
         
         window.addEventListener('load', async () => {
             video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            statusDiv = document.getElementById('status-details');
+            
+            addStatus('Page loaded ✓');
+            addStatus('Checking face-api: ' + (typeof faceapi !== 'undefined' ? '✓ Found' : '❌ Missing'));
+            
+            if (typeof faceapi === 'undefined') {
+                document.getElementById('info-box').innerHTML = '<strong>❌ ERROR</strong><br>face-api library failed to load!';
+                document.getElementById('info-box').style.background = 'rgba(204, 51, 102, 0.3)';
+                return;
+            }
+            
+            // Load models
+            try {
+                addStatus('Loading detector model...');
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+                
+                await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+                addStatus('✓ Detector loaded');
+                
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                addStatus('✓ Tiny detector loaded');
+                
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                addStatus('✓ Landmarks loaded');
+                
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                addStatus('✓ Recognition loaded');
+                
+                modelsLoaded = true;
+                addStatus('🎉 ALL READY!');
+                
+                document.getElementById('info-box').innerHTML = 
+                    '<strong>✓ Models Ready!</strong><br>Click START to begin detection';
+                document.getElementById('info-box').style.background = 'rgba(77, 187, 111, 0.3)';
+            } catch (err) {
+                addStatus('❌ ERROR: ' + err.message);
+                document.getElementById('info-box').innerHTML = 
+                    '<strong>❌ Failed</strong><br>' + err.message;
+                document.getElementById('info-box').style.background = 'rgba(204, 51, 102, 0.3)';
+                return;
+            }
+            
+            // Load trained data
             try {
                 const response = await fetch('/get_trained_data');
                 trainedData = await response.json();
@@ -96,36 +161,239 @@
                 }
             } catch (err) {
                 document.getElementById('info-box').innerHTML = 
-                    `<strong>❌ Error</strong><br>Could not load data: ${err.message}`;
+                    `<strong>❌ Error</strong><br>Could not load data`;
             }
         });
         
         async function startRecognition() {
+            if (!modelsLoaded) {
+                alert('Models still loading, please wait...');
+                return;
+            }
+            
+            if (!trainedData || !trainedData.embeddings || trainedData.embeddings.length === 0) {
+                alert('No trained data! Capture faces first.');
+                return;
+            }
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // Create face matcher
+                const labeledDescriptors = trainedData.embeddings.map((embList, idx) => {
+                    const descriptors = embList.map(emb => new Float32Array(emb));
+                    return new faceapi.LabeledFaceDescriptors(
+                        trainedData.names[idx],
+                        descriptors
+                    );
+                });
+                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+                
+                // Start webcam
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 video.srcObject = stream;
-                video.style.display = 'block';
-                document.getElementById('placeholder').style.display = 'none';
-                document.getElementById('start-btn').style.display = 'none';
-                document.getElementById('stop-btn').style.display = 'block';
-                document.getElementById('stats').style.display = 'block';
-                if (trainedData && trainedData.embeddings) {
+                
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    document.getElementById('video-container').style.display = 'block';
+                    document.getElementById('placeholder').style.display = 'none';
+                    document.getElementById('start-btn').style.display = 'none';
+                    document.getElementById('stop-btn').style.display = 'block';
+                    document.getElementById('stats').style.display = 'block';
+                    
                     const totalPhotos = trainedData.embeddings.reduce((sum, emb) => sum + emb.length, 0);
                     document.getElementById('people-count').textContent = trainedData.names.length;
                     document.getElementById('photos-count').textContent = totalPhotos;
-                }
+                    
+                    console.log('Video ready:', video.videoWidth, 'x', video.videoHeight);
+                    console.log('Canvas ready:', canvas.width, 'x', canvas.height);
+                    console.log('Video readyState:', video.readyState);
+                    console.log('Video paused:', video.paused);
+                    
+                    // Test draw - verify canvas is visible
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                    ctx.fillRect(50, 50, 100, 100);
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 20px Arial';
+                    ctx.fillText('Canvas Works!', 60, 100);
+                    console.log('✓ Drew test rectangle');
+                    
+                    setTimeout(() => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        console.log('Starting face detection in 500ms...');
+                        
+                        isRecognizing = true;
+                        
+                        // Add status message
+                        document.getElementById('info-box').innerHTML = 
+                            '<strong>🔍 Detecting faces...</strong><br>Check console (F12) for details';
+                        
+                        // Wait for video to be fully playing before starting detection
+                        setTimeout(() => {
+                            console.log('🎬 Detection starting NOW!');
+                            console.log('Final video check - paused:', video.paused, 'readyState:', video.readyState);
+                            detectFaces();
+                        }, 500);
+                    }, 2000);
+                };
             } catch (error) {
                 alert('Camera error: ' + error.message);
             }
         }
         
+        async function detectFaces() {
+            if (!isRecognizing) return;
+            
+            // Check if video is actually playing
+            if (video.paused || video.ended || !video.readyState || video.readyState < 2) {
+                console.log('⏳ Video not ready yet, waiting...');
+                setTimeout(() => detectFaces(), 100);
+                return;
+            }
+            
+            try {
+                // Try TinyFaceDetector first (better for various conditions)
+                let detections = await faceapi.detectAllFaces(video, 
+                    new faceapi.TinyFaceDetectorOptions({ 
+                        inputSize: 320,
+                        scoreThreshold: 0.3 
+                    }))
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
+                
+                // If no faces found, try SSD with very low threshold
+                if (detections.length === 0) {
+                    detections = await faceapi.detectAllFaces(video, 
+                        new faceapi.SsdMobilenetv1Options({ minConfidence: 0.1 }))
+                        .withFaceLandmarks()
+                        .withFaceDescriptors();
+                }
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                console.log(`🔍 Detection check - Found: ${detections.length} face(s)`);
+                
+                if (detections.length > 0) {
+                    console.log('✓ Detected', detections.length, 'face(s)');
+                }
+                
+                detections.forEach(detection => {
+                    const box = detection.detection.box;
+                    let color, label;
+                    
+                    // Try matching
+                    if (faceMatcher) {
+                        const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+                        console.log('Match:', bestMatch.label, '| Distance:', bestMatch.distance.toFixed(3));
+                        
+                        // Calculate accuracy percentage with realistic scaling
+                        // Distance < 0.4 = excellent, 0.4-0.6 = good, > 0.6 = poor/unknown
+                        let accuracy;
+                        if (bestMatch.distance < 0.4) {
+                            // Excellent match: 85-100%
+                            accuracy = 100 - (bestMatch.distance * 37.5);
+                        } else if (bestMatch.distance < 0.6) {
+                            // Good match: 70-85%
+                            accuracy = 85 - ((bestMatch.distance - 0.4) * 75);
+                        } else {
+                            // Poor match: < 70%
+                            accuracy = Math.max(0, 70 - ((bestMatch.distance - 0.6) * 100));
+                        }
+                        document.getElementById('accuracy').textContent = accuracy.toFixed(1) + '%';
+                        
+                        // More lenient threshold - 0.6 instead of 0.7
+                        let currentLabel;
+                        if (bestMatch.label === 'unknown' || bestMatch.distance >= 0.6) {
+                            currentLabel = 'unknown';
+                        } else {
+                            currentLabel = bestMatch.label;
+                        }
+                        
+                        // Stability check - only change label after consistent detections
+                        if (currentLabel === lastLabel) {
+                            labelStability++;
+                        } else {
+                            labelStability = 0;
+                            lastLabel = currentLabel;
+                        }
+                        
+                        // Use stable label for display
+                        if (labelStability >= STABILITY_THRESHOLD || lastLabel === null) {
+                            if (currentLabel === 'unknown') {
+                                color = '#cc3366'; // Red - UNKNOWN
+                                label = 'Unknown ✗';
+                            } else {
+                                color = '#4dbb6f'; // Green - KNOWN
+                                label = currentLabel + ' ✓';
+                            }
+                        } else {
+                            // Keep showing previous stable result
+                            if (lastLabel === 'unknown') {
+                                color = '#cc3366';
+                                label = 'Unknown ✗';
+                            } else {
+                                color = '#4dbb6f';
+                                label = lastLabel + ' ✓';
+                            }
+                        }
+                    } else {
+                        // No matcher, just show detected face in blue
+                        color = '#3399ff';
+                        label = 'Face Detected';
+                        document.getElementById('accuracy').textContent = '--';
+                    }
+                    
+                    // Draw box
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(box.x, box.y, box.width, box.height);
+                    
+                    // Draw label background
+                    ctx.fillStyle = color;
+                    ctx.fillRect(box.x, box.y - 35, box.width, 35);
+                    
+                    // Draw label text
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 18px Arial';
+                    ctx.fillText(label, box.x + 5, box.y - 10);
+                    
+                    console.log('Drew box at:', box.x, box.y, box.width, box.height);
+                });
+                
+                if (detections.length === 0) {
+                    // Draw message on canvas with tips
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.fillRect(10, 10, canvas.width - 20, 100);
+                    ctx.fillStyle = '#cc3366';
+                    ctx.font = 'bold 18px Arial';
+                    ctx.fillText('❌ No face detected', 20, 35);
+                    ctx.fillStyle = '#333';
+                    ctx.font = '14px Arial';
+                    ctx.fillText('💡 Try:', 20, 60);
+                    ctx.fillText('• Move closer to camera', 40, 80);
+                    ctx.fillText('• Improve lighting', 40, 100);
+                    document.getElementById('accuracy').textContent = '--';
+                }
+            } catch (err) {
+                console.error('Detection error:', err);
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+                ctx.fillRect(10, 10, 300, 40);
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText('Error: ' + err.message, 20, 35);
+            }
+            
+            setTimeout(() => detectFaces(), 100);
+        }
+        
         function stopRecognition() {
+            isRecognizing = false;
             if (video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
-            video.style.display = 'none';
+            document.getElementById('video-container').style.display = 'none';
             document.getElementById('placeholder').style.display = 'block';
             document.getElementById('start-btn').style.display = 'block';
             document.getElementById('stop-btn').style.display = 'none';
             document.getElementById('stats').style.display = 'none';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     </script>
 </body>

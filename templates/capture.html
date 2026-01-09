@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FacePass - Capture</title>
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -159,6 +159,26 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let captureCount = 0;
+        let modelsLoaded = false;
+        
+        // Load face-api models
+        async function loadModels() {
+            try {
+                console.log('Loading face-api models...');
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+                
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                
+                modelsLoaded = true;
+                console.log('✓ Models loaded!');
+                showStatus('✓ Ready to capture with face recognition!', 'success');
+            } catch (err) {
+                console.error('Model loading error:', err);
+                showStatus('⚠️ Models failed, will use basic capture', 'error');
+            }
+        }
         
         // Start webcam immediately
         console.log('Requesting camera access...');
@@ -174,7 +194,8 @@
             video.onloadedmetadata = () => {
                 console.log('Video ready!');
                 video.play();
-                showStatus('✓ Camera ready! You can start capturing.', 'success');
+                showStatus('✓ Camera ready! Loading models...', 'success');
+                loadModels();
             };
         })
         .catch(err => {
@@ -214,10 +235,36 @@
                 return;
             }
             
-            showStatus('📸 Capturing photo...', 'success');
+            showStatus('📸 Detecting face and extracting features...', 'success');
             
-            // Use simple embedding (128 random numbers)
-            const embedding = new Array(128).fill(0).map(() => Math.random());
+            let embedding;
+            
+            // Extract real face embedding if models loaded
+            if (modelsLoaded) {
+                try {
+                    const detection = await faceapi.detectSingleFace(video, 
+                        new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks()
+                        .withFaceDescriptor();
+                    
+                    if (detection) {
+                        embedding = Array.from(detection.descriptor);
+                        console.log('✓ Real face embedding extracted!');
+                        showStatus('✓ Face detected! Capturing...', 'success');
+                    } else {
+                        showStatus('⚠️ No face detected - position your face in frame', 'error');
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Detection error:', err);
+                    showStatus('❌ Face detection failed, try again', 'error');
+                    return;
+                }
+            } else {
+                // Fallback to random (should not happen)
+                embedding = new Array(128).fill(0).map(() => Math.random());
+                console.warn('Using random embedding - models not loaded');
+            }
             
             // Send to server
             fetch('/capture_photo', {
