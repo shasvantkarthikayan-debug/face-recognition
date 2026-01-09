@@ -12,12 +12,23 @@
             box-sizing: border-box;
         }
         
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%);
             min-height: 100vh;
             padding: 20px;
             color: white;
+            animation: fadeIn 0.6s ease;
         }
         
         .container {
@@ -70,6 +81,7 @@
             margin-bottom: 20px;
             background: #000;
             min-height: 400px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
         }
         
         #canvas {
@@ -143,10 +155,13 @@
                 </select>
             </div>
             
-            <video id="video" autoplay playsinline></video>
+            <video id="video" autoplay playsinline muted></video>
             <canvas id="canvas"></canvas>
             
+            <div id="debug-info" style="font-size: 12px; color: #888; margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 5px;"></div>
+            
             <button class="btn btn-capture" onclick="capturePhoto()">📷 Capture Photo</button>
+            <button class="btn btn-home" onclick="initCamera()" style="background: linear-gradient(135deg, #ff9933 0%, #ff6600 100%);">🔄 Restart Camera</button>
             <a href="/" class="btn btn-home" style="display:block; text-align:center; text-decoration:none;">🏠 Back to Home</a>
             
             <div id="status"></div>
@@ -158,13 +173,33 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const debugInfo = document.getElementById('debug-info');
         let captureCount = 0;
         let modelsLoaded = false;
+        let cameraReady = false;
+        
+        // Debug logging function
+        function debugLog(message) {
+            console.log(message);
+            debugInfo.innerHTML += message + '<br>';
+        }
+        
+        // Show initial status
+        showStatus('⏳ Initializing camera...', 'success');
+        debugLog('🔍 Starting initialization...');
+        
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showStatus('❌ Camera not supported in this browser', 'error');
+            debugLog('❌ getUserMedia not supported');
+        } else {
+            debugLog('✓ getUserMedia is supported');
+        }
         
         // Load face-api models
         async function loadModels() {
             try {
-                console.log('Loading face-api models...');
+                debugLog('📦 Loading face-api models...');
                 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
                 
                 await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
@@ -172,49 +207,98 @@
                 await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
                 
                 modelsLoaded = true;
-                console.log('✓ Models loaded!');
-                showStatus('✓ Ready to capture with face recognition!', 'success');
+                debugLog('✓ Models loaded successfully!');
+                if (cameraReady) {
+                    showStatus('✓ Camera ready! You can capture photos now.', 'success');
+                }
             } catch (err) {
                 console.error('Model loading error:', err);
-                showStatus('⚠️ Models failed, will use basic capture', 'error');
+                debugLog('⚠️ Model loading failed: ' + err.message);
+                showStatus('⚠️ Models failed to load, but camera is ready', 'error');
             }
         }
         
-        // Start webcam immediately
-        console.log('Requesting camera access...');
-        navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            } 
-        })
-        .then(stream => {
-            console.log('Camera access granted!');
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                console.log('Video ready!');
-                video.play();
-                showStatus('✓ Camera ready! Loading models...', 'success');
+        // Start webcam
+        async function initCamera() {
+            try {
+                debugLog('📹 Requesting camera permission...');
+                
+                // List available devices
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                debugLog(`Found ${videoDevices.length} video device(s)`);
+                
+                const constraints = { 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+                
+                debugLog('Getting user media...');
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                debugLog('✓ Camera access granted!');
+                video.srcObject = stream;
+                
+                // Wait for video to be ready
+                video.onloadedmetadata = () => {
+                    debugLog('✓ Video metadata loaded');
+                    debugLog(`Video size: ${video.videoWidth}x${video.videoHeight}`);
+                };
+                
+                // Ensure video plays
+                video.oncanplay = () => {
+                    debugLog('✓ Video can play');
+                };
+                
+                await video.play();
+                debugLog('✓ Video playing!');
+                cameraReady = true;
+                showStatus('✓ Camera ready! Loading face recognition models...', 'success');
                 loadModels();
-            };
-        })
-        .catch(err => {
-            console.error('Camera error:', err);
-            showStatus('Error: ' + err.message, 'error');
-        });
+                
+            } catch (err) {
+                console.error('Camera error:', err);
+                debugLog('❌ Camera error: ' + err.name + ' - ' + err.message);
+                showStatus('❌ Camera error: ' + err.message, 'error');
+                
+                // Provide specific error messages
+                if (err.name === 'NotAllowedError') {
+                    showStatus('❌ Camera permission denied. Please allow camera access.', 'error');
+                    debugLog('💡 Please click the camera icon in your browser and allow access');
+                } else if (err.name === 'NotFoundError') {
+                    showStatus('❌ No camera found on this device', 'error');
+                } else if (err.name === 'NotReadableError') {
+                    showStatus('❌ Camera is being used by another application', 'error');
+                }
+            }
+        }
+        
+        // Initialize camera on page load
+        setTimeout(() => {
+            initCamera();
+        }, 100);
         
         async function capturePhoto() {
             const name = document.getElementById('name').value.trim();
             const category = document.getElementById('category').value;
             
             if (!name) {
-                showStatus('Please enter a name', 'error');
+                showStatus('❌ Please enter a name', 'error');
+                return;
+            }
+            
+            // Check if camera is ready
+            if (!cameraReady) {
+                showStatus('⏳ Please wait for camera to initialize...', 'error');
                 return;
             }
             
             // Check if video is ready
             if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-                showStatus('⏳ Please wait for camera to initialize...', 'error');
+                showStatus('⏳ Camera is loading, please wait...', 'error');
                 return;
             }
             
@@ -236,6 +320,10 @@
             }
             
             showStatus('📸 Detecting face and extracting features...', 'success');
+            
+            // Flash effect
+            video.style.animation = 'flash 0.3s ease';
+            setTimeout(() => { video.style.animation = ''; }, 300);
             
             let embedding;
             
@@ -261,9 +349,10 @@
                     return;
                 }
             } else {
-                // Fallback to random (should not happen)
+                // If models aren't loaded yet, still capture with placeholder
                 embedding = new Array(128).fill(0).map(() => Math.random());
-                console.warn('Using random embedding - models not loaded');
+                console.warn('Using placeholder embedding - models still loading');
+                showStatus('📸 Capturing (models still loading)...', 'success');
             }
             
             // Send to server
@@ -295,12 +384,14 @@
             const statusDiv = document.getElementById('status');
             statusDiv.textContent = message;
             statusDiv.className = 'status ' + type;
-            setTimeout(() => {
-                if (!message.includes('ready')) {
+            
+            // Don't auto-clear "ready" or "loading" messages
+            if (!message.includes('ready') && !message.includes('Initializing') && !message.includes('Loading')) {
+                setTimeout(() => {
                     statusDiv.className = 'status';
                     statusDiv.textContent = '';
-                }
-            }, 3000);
+                }, 3000);
+            }
         }
     </script>
 </body>

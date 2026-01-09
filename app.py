@@ -53,6 +53,10 @@ def train_page():
 def recognize_page():
     return render_template('recognize.html')
 
+@app.route('/manage')
+def manage_page():
+    return render_template('manage.html')
+
 @app.route('/get_trained_data', methods=['GET'])
 def get_trained_data():
     """Return trained face data to client for recognition"""
@@ -133,6 +137,52 @@ def train_model():
         'processed': total_embeddings,
         'people': num_people
     })
+
+@app.route('/statistics', methods=['GET'])
+def get_statistics():
+    """Get detailed statistics about trained faces"""
+    stats = {
+        'total_people': len(embeddings_db['names']),
+        'total_photos': sum(len(emb_list) for emb_list in embeddings_db['embeddings']),
+        'people_details': []
+    }
+    
+    for i, (name, category, embeddings) in enumerate(zip(
+        embeddings_db['names'], 
+        embeddings_db['categories'], 
+        embeddings_db['embeddings']
+    )):
+        stats['people_details'].append({
+            'id': i,
+            'name': name,
+            'category': category,
+            'photo_count': len(embeddings)
+        })
+    
+    return jsonify(stats)
+
+@app.route('/delete_person/<int:person_id>', methods=['DELETE'])
+def delete_person(person_id):
+    """Delete a person's data"""
+    if person_id < 0 or person_id >= len(embeddings_db['names']):
+        return jsonify({'error': 'Invalid person ID'}), 400
+    
+    name = embeddings_db['names'][person_id]
+    category = embeddings_db['categories'][person_id]
+    
+    # Remove from database
+    del embeddings_db['names'][person_id]
+    del embeddings_db['categories'][person_id]
+    del embeddings_db['embeddings'][person_id]
+    
+    save_training_data()
+    
+    return jsonify({'status': 'success', 'message': f'Deleted {name}'})
+
+@app.route('/export_data', methods=['GET'])
+def export_data():
+    """Export face data as JSON file"""
+    return jsonify(embeddings_db)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
