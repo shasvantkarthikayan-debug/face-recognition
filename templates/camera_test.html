@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Camera Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        video {
+            border: 3px solid #333;
+            background: black;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🎥 Simple Camera Test</h1>
+    
+    <div id="status" class="info">Click button to test camera...</div>
+    
+    <button onclick="testCamera()">START CAMERA</button>
+    <button onclick="stopCamera()">STOP CAMERA</button>
+    
+    <br><br>
+    
+    <video id="video" width="640" height="480" autoplay></video>
+    
+    <h3>Debug Info:</h3>
+    <pre id="debug"></pre>
+
+    <script>
+        let video = document.getElementById('video');
+        let stream = null;
+        
+        function log(msg) {
+            console.log(msg);
+            document.getElementById('debug').innerHTML += msg + '\n';
+        }
+        
+        function updateStatus(msg, type) {
+            const status = document.getElementById('status');
+            status.innerHTML = msg;
+            status.className = type;
+        }
+        
+        async function testCamera() {
+            log('=== CAMERA TEST START ===');
+            updateStatus('⏳ Testing camera...', 'info');
+            
+            try {
+                // Check browser support
+                if (!navigator.mediaDevices) {
+                    throw new Error('navigator.mediaDevices not supported');
+                }
+                log('✓ navigator.mediaDevices is available');
+                
+                if (!navigator.mediaDevices.getUserMedia) {
+                    throw new Error('getUserMedia not supported');
+                }
+                log('✓ getUserMedia is available');
+                
+                // Request camera
+                log('Requesting camera access...');
+                updateStatus('⏳ Requesting camera permission...', 'info');
+                
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+                
+                log('✓ Camera access granted!');
+                log('Stream details: ' + stream.getTracks().length + ' tracks');
+                
+                // Attach to video element
+                video.srcObject = stream;
+                
+                // Wait for video to be ready
+                video.onloadedmetadata = () => {
+                    log('✓ Video metadata loaded: ' + video.videoWidth + 'x' + video.videoHeight);
+                    updateStatus('✅ CAMERA WORKING! Video is playing.', 'success');
+                };
+                
+                await video.play();
+                log('✓ Video play started');
+                
+            } catch (error) {
+                log('❌ ERROR: ' + error.name + ' - ' + error.message);
+                updateStatus('❌ Camera failed: ' + error.message, 'error');
+                
+                if (error.name === 'NotAllowedError') {
+                    log('💡 TIP: You need to allow camera permission in browser');
+                } else if (error.name === 'NotFoundError') {
+                    log('💡 TIP: No camera found on this device');
+                } else if (error.name === 'NotReadableError') {
+                    log('💡 TIP: Camera is being used by another application');
+                }
+            }
+        }
+        
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                log('✓ Camera stopped');
+                updateStatus('Camera stopped', 'info');
+            }
+        }
+    </script>
+</body>
+</html>

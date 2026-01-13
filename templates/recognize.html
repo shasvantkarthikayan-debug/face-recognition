@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recognize Face - FacePass</title>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .back-btn:hover {
+            background: white;
+            color: #667eea;
+            transform: translateY(-50%) translateX(-5px);
+        }
+        .content {
+            padding: 30px;
+            text-align: center;
+        }
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        #video {
+            width: 640px;
+            height: 480px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            background: #000;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(56, 239, 125, 0.4);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(235, 51, 73, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .result-box {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px auto;
+            max-width: 500px;
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.3);
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .result-box .identity {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .result-box .category {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .result-box.status-active {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .result-box.status-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        }
+        .result-box.status-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+        .result-box.status-inactive {
+            background: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-btn">← Back to Home</a>
+            <h1>🔍 Face Recognition</h1>
+            <p>Real-time face recognition with advanced tracking</p>
+        </div>
+        
+        <div class="content">
+            <div class="video-container">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="overlay"></canvas>
+            </div>
+            
+            <div class="controls">
+                <button id="startBtn" class="btn btn-success" onclick="startRecognition()">▶ Start Recognition</button>
+                <button id="stopBtn" class="btn btn-danger" onclick="stopRecognition()" disabled>⏹ Stop Recognition</button>
+            </div>
+            
+            <div id="result" class="result-box status-inactive">Ready to recognize...</div>
+        </div>
+    </div>
+
+    <script>
+        let video = document.getElementById('video');
+        let overlay = document.getElementById('overlay');
+        let overlayCtx = overlay.getContext('2d');
+        let stream = null;
+        let modelsLoaded = false;
+        let recognitionInterval = null;
+        let detectionInterval = null;
+        let isRecognizing = false;
+        let currentIdentity = 'Unknown';
+        let currentCategory = 'N/A';
+        let currentSimilarity = 0;
+        let lastUpdateTime = 0;
+        
+        // STABILITY: Track history for smoothing
+        const similarityHistory = [];
+        const identityHistory = [];
+        const MAX_HISTORY = 10;
+        let stableBox = null;
+        const BOX_SMOOTHING = 0.7;
+        let lastRecognitionResult = null;
+
+        async function loadModels() {
+            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+            
+            updateResult('⏳ Loading face detection model...', 'inactive');
+            console.log('Starting model load...');
+            
+            try {
+                console.log('Loading tiny face detector...');
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                console.log('✓ Tiny face detector loaded');
+                
+                modelsLoaded = true;
+                updateResult('✅ Models loaded - Click Start to begin!', 'success');
+                document.getElementById('startBtn').disabled = false;
+                console.log('All models loaded successfully!');
+            } catch (error) {
+                updateResult('❌ Failed to load models: ' + error.message, 'danger');
+                console.error('Model loading error:', error);
+            }
+        }
+
+        function updateResult(message, statusClass) {
+            const resultBox = document.getElementById('result');
+            resultBox.innerHTML = message;
+            resultBox.className = 'result-box status-' + statusClass;
+        }
+
+        async function startRecognition() {
+            if (!modelsLoaded) {
+                updateResult('⚠️ Models not loaded yet', 'danger');
+                console.log('Cannot start - models not loaded');
+                return;
+            }
+
+            try {
+                console.log('Requesting camera...');
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 640, 
+                        height: 480,
+                        facingMode: 'user'
+                    } 
+                });
+                console.log('Camera granted!');
+                video.srcObject = stream;
+                
+                video.addEventListener('loadedmetadata', () => {
+                    console.log('Video ready:', video.videoWidth, 'x', video.videoHeight);
+                    overlay.width = video.videoWidth;
+                    overlay.height = video.videoHeight;
+                    console.log('Canvas set:', overlay.width, 'x', overlay.height);
+                    
+                    isRecognizing = true;
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    
+                    updateResult('🟢 Recognition Active - Scanning...', 'active');
+                    console.log('Starting detection and recognition loops...');
+                    
+                    // Fast bounding box detection (60 FPS)
+                    detectionInterval = setInterval(async () => {
+                        if (!isRecognizing || video.paused || video.ended) return;
+                        
+                        try {
+                            const detection = await faceapi
+                                .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({
+                                    inputSize: 416,
+                                    scoreThreshold: 0.5
+                                }));
+                            
+                            overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+                            
+                            if (detection) {
+                                const box = detection.box;
+                                
+                                console.log('Face at:', box.x.toFixed(0), box.y.toFixed(0));
+                                
+                                overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+                                
+                                if (lastRecognitionResult) {
+                                    console.log('Drawing with result:', lastRecognitionResult.identity, lastRecognitionResult.isKnown);
+                                    drawAdvancedBoundingBox(
+                                        overlayCtx,
+                                        box,
+                                        lastRecognitionResult.identity,
+                                        lastRecognitionResult.category,
+                                        lastRecognitionResult.similarity,
+                                        lastRecognitionResult.isKnown
+                                    );
+                                } else {
+                                    console.log('Drawing simple box');
+                                    overlayCtx.strokeStyle = '#00ff00';
+                                    overlayCtx.lineWidth = 3;
+                                    overlayCtx.strokeRect(box.x, box.y, box.width, box.height);
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Detection error:', err);
+                        }
+                    }, 33); // 30 FPS (more stable)
+                    
+                    // Recognition (slower, every 1 second)
+                    recognitionInterval = setInterval(() => {
+                        recognizeFace().catch(err => {
+                            console.error('Recognition error:', err);
+                        });
+                    }, 1000); // 1 second
+                });
+                
+            } catch (error) {
+                updateResult('❌ Camera error: ' + error.message, 'inactive');
+                console.error('Camera error:', error);
+            }
+        }
+
+        // Smooth box movement
+        function smoothBox(newBox) {
+            if (!stableBox) {
+                stableBox = { ...newBox };
+                return stableBox;
+            }
+            
+            stableBox.x = stableBox.x * (1 - BOX_SMOOTHING) + newBox.x * BOX_SMOOTHING;
+            stableBox.y = stableBox.y * (1 - BOX_SMOOTHING) + newBox.y * BOX_SMOOTHING;
+            stableBox.width = stableBox.width * (1 - BOX_SMOOTHING) + newBox.width * BOX_SMOOTHING;
+            stableBox.height = stableBox.height * (1 - BOX_SMOOTHING) + newBox.height * BOX_SMOOTHING;
+            
+            return stableBox;
+        }
+
+        // Average similarity over frames
+        function getSmoothedSimilarity(newSimilarity) {
+            similarityHistory.push(newSimilarity);
+            if (similarityHistory.length > MAX_HISTORY) {
+                similarityHistory.shift();
+            }
+            
+            const sum = similarityHistory.reduce((a, b) => a + b, 0);
+            return sum / similarityHistory.length;
+        }
+
+        // Most common identity over frames
+        function getStableIdentity(newIdentity) {
+            identityHistory.push(newIdentity);
+            if (identityHistory.length > MAX_HISTORY) {
+                identityHistory.shift();
+            }
+            
+            // For first few frames, just return the new identity
+            if (identityHistory.length < 3) {
+                return newIdentity;
+            }
+            
+            // Count occurrences
+            const counts = {};
+            identityHistory.forEach(id => {
+                counts[id] = (counts[id] || 0) + 1;
+            });
+            
+            // Find most common
+            let maxCount = 0;
+            let stableId = newIdentity;
+            for (const [id, count] of Object.entries(counts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    stableId = id;
+                }
+            }
+            
+            // Use majority vote (just return most common, no hard threshold)
+            return stableId;
+        }
+
+        function drawCheckmark(ctx, x, y, size, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y + size / 2);
+            ctx.lineTo(x + size / 3, y + size);
+            ctx.lineTo(x + size, y);
+            ctx.stroke();
+        }
+
+        function drawWarningTriangle(ctx, x, y, size, flash) {
+            ctx.save();
+            ctx.translate(x + size/2, y + size/2);
+            
+            if (flash) {
+                const pulse = Math.abs(Math.sin(Date.now() / 300));
+                ctx.globalAlpha = 0.5 + pulse * 0.5;
+            }
+            
+            ctx.strokeStyle = '#ffff00';
+            ctx.fillStyle = '#ff0000';
+            ctx.lineWidth = 3;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, -size/2);
+            ctx.lineTo(size/2, size/2);
+            ctx.lineTo(-size/2, size/2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${size * 0.7}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('!', 0, 0);
+            
+            ctx.restore();
+        }
+
+        function drawAdvancedBoundingBox(ctx, box, identity, category, similarity, isKnown) {
+            console.log('🎨 Drawing box:', { identity, isKnown, similarity });
+            
+            const padding = 10;
+            const labelHeight = 50;
+            const cornerSize = 25;
+            
+            const boxColor = isKnown ? '#00ff00' : '#ff0000';
+            const bgColor = isKnown ? 'rgba(0, 255, 0, 0.9)' : 'rgba(255, 0, 0, 0.9)';
+            
+            // Main box
+            ctx.strokeStyle = boxColor;
+            ctx.lineWidth = 4;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+            
+            // Corner markers
+            ctx.lineWidth = 6;
+            
+            // Top-left
+            ctx.beginPath();
+            ctx.moveTo(box.x, box.y + cornerSize);
+            ctx.lineTo(box.x, box.y);
+            ctx.lineTo(box.x + cornerSize, box.y);
+            ctx.stroke();
+            
+            // Top-right
+            ctx.beginPath();
+            ctx.moveTo(box.x + box.width - cornerSize, box.y);
+            ctx.lineTo(box.x + box.width, box.y);
+            ctx.lineTo(box.x + box.width, box.y + cornerSize);
+            ctx.stroke();
+            
+            // Bottom-left
+            ctx.beginPath();
+            ctx.moveTo(box.x, box.y + box.height - cornerSize);
+            ctx.lineTo(box.x, box.y + box.height);
+            ctx.lineTo(box.x + cornerSize, box.y + box.height);
+            ctx.stroke();
+            
+            // Bottom-right
+            ctx.beginPath();
+            ctx.moveTo(box.x + box.width - cornerSize, box.y + box.height);
+            ctx.lineTo(box.x + box.width, box.y + box.height);
+            ctx.lineTo(box.x + box.width, box.y + box.height - cornerSize);
+            ctx.stroke();
+            
+            // Label background
+            const labelY = box.y - labelHeight - padding;
+            const labelWidth = box.width;
+            
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(box.x, labelY, labelWidth, labelHeight);
+            
+            ctx.strokeStyle = boxColor;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(box.x, labelY, labelWidth, labelHeight);
+            
+            // Icon
+            const iconSize = 20;
+            const iconX = box.x + 10;
+            const iconY = labelY + 15;
+            
+            if (isKnown) {
+                drawCheckmark(ctx, iconX, iconY, iconSize, '#ffffff');
+            } else {
+                drawWarningTriangle(ctx, iconX - 5, iconY - 5, 30, true);
+            }
+            
+            // Name text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textBaseline = 'top';
+            ctx.fillText(identity, iconX + iconSize + 10, labelY + 8);
+            
+            // Category and confidence
+            ctx.font = '14px Arial';
+            const subText = isKnown 
+                ? `${category} • ${similarity}%` 
+                : `Unregistered • ${similarity}%`;
+            ctx.fillText(subText, iconX + iconSize + 10, labelY + 32);
+            
+            // Pulse indicator
+            const pulseSize = 8;
+            ctx.fillStyle = boxColor;
+            ctx.beginPath();
+            ctx.arc(box.x + box.width - 10, box.y + 10, pulseSize, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Large warning for unknown
+            if (!isKnown) {
+                const warningX = box.x + box.width - 60;
+                const warningY = box.y + 10;
+                drawWarningTriangle(ctx, warningX, warningY, 50, true);
+            }
+        }
+
+        async function recognizeFace() {
+            if (!isRecognizing || video.paused || video.ended) return;
+
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                const imageData = canvas.toDataURL('image/jpeg', 0.95);
+
+                // Extract 512-D embedding from backend
+                const backendResponse = await fetch('/extract_embedding', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                const backendData = await backendResponse.json();
+                
+                if (!backendData.success || !backendData.embedding) {
+                    console.error('Backend extraction failed:', backendData);
+                    return;
+                }
+                
+                const embedding = backendData.embedding;
+                console.log('✓ Got 512-D embedding from backend, length:', embedding.length);
+
+                const response = await fetch('/recognize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ embedding: embedding })
+                });
+
+                const result = await response.json();
+                
+                console.log('Backend response:', result);
+
+                // Use backend response directly - NO SMOOTHING
+                const identity = result.identity || 'Unknown';
+                const rawSimilarity = result.similarity || 0;
+                const similarity = (rawSimilarity * 100).toFixed(1);
+                const category = result.category || 'N/A';
+                const isKnown = identity !== 'Unknown';
+
+                console.log('Final display:', {
+                    identity: identity,
+                    category: category,
+                    similarity: similarity + '%',
+                    isKnown: isKnown
+                });
+
+                const statusIcon = isKnown ? '✅' : '❌';
+                const statusText = isKnown ? 'RECOGNIZED' : 'UNREGISTERED';
+                
+                document.getElementById('result').innerHTML = 
+                    `${statusIcon} <strong>${statusText}</strong><br>` +
+                    `<div class="identity">${identity}</div>` +
+                    `📊 Confidence: ${similarity}%` +
+                    `<div class="category">Category: ${category}</div>`;
+
+                lastRecognitionResult = {
+                    identity: identity,
+                    category: category,
+                    similarity: similarity,
+                    isKnown: isKnown
+                };
+                
+                console.log('lastRecognitionResult updated:', lastRecognitionResult);
+
+                currentIdentity = stableIdentity;
+                currentCategory = category;
+                currentSimilarity = smoothedSimilarity;
+                lastUpdateTime = Date.now();
+
+            } catch (error) {
+                console.error('Recognition error:', error);
+            }
+        }
+
+        function stopRecognition() {
+            if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+                recognitionInterval = null;
+            }
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+            }
+            isRecognizing = false;
+            
+            stableBox = null;
+            similarityHistory.length = 0;
+            identityHistory.length = 0;
+            lastRecognitionResult = null;
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            updateResult('⏹️ Recognition stopped', 'inactive');
+        }
+
+        window.addEventListener('load', loadModels);
+    </script>
+</body>
+</html>

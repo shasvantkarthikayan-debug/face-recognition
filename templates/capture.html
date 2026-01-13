@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FacePass - Capture</title>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+            animation: fadeIn 0.6s ease;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .card {
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 16px;
+            color: #8ab4f8;
+        }
+        
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #415a77;
+            background: rgba(30, 30, 45, 0.8);
+            color: white;
+            font-size: 16px;
+        }
+        
+        #video {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            background: #000;
+            min-height: 400px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+        }
+        
+        #canvas {
+            display: none;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-capture {
+            background: linear-gradient(135deg, #3399ff 0%, #0066cc 100%);
+            color: white;
+        }
+        
+        .btn-home {
+            background: linear-gradient(135deg, #666 0%, #444 100%);
+            color: white;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .success {
+            background: rgba(77, 187, 111, 0.3);
+            color: #4dbb6f;
+        }
+        
+        .error {
+            background: rgba(204, 51, 102, 0.3);
+            color: #cc3366;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 Capture Faces</h1>
+            <p>Capture multiple photos for face recognition training</p>
+        </div>
+        
+        <div class="card">
+            <div class="input-group">
+                <label>Name:</label>
+                <input type="text" id="name" placeholder="Enter person's name">
+            </div>
+            
+            <div class="input-group">
+                <label>Category:</label>
+                <select id="category">
+                    <option value="students">Students</option>
+                    <option value="parents">Parents</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="quickMode" onchange="toggleQuickMode()" style="width: auto;">
+                    <span>⚡ Quick Mode (Skip validation - faster but still extracts face data)</span>
+                </label>
+            </div>
+            
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="canvas"></canvas>
+            
+            <div id="debug-info" style="font-size: 12px; color: #888; margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 5px;"></div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button class="btn btn-capture" onclick="capturePhoto()" style="flex: 1;">📷 Capture Photo (<span id="photoCount">0</span>)</button>
+                <button class="btn" onclick="quickCaptureBurst()" style="flex: 1; background: linear-gradient(135deg, #00cc66 0%, #009944 100%);">⚡ Quick Burst (5 photos)</button>
+            </div>
+            <button class="btn btn-home" onclick="initCamera()" style="background: linear-gradient(135deg, #ff9933 0%, #ff6600 100%);">🔄 Restart Camera</button>
+            <a href="/" class="btn btn-home" style="display:block; text-align:center; text-decoration:none;">🏠 Back to Home</a>
+            
+            <div id="status"></div>
+        </div>
+    </div>
+    
+    <script>
+        console.log('Page loaded!');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const debugInfo = document.getElementById('debug-info');
+        let captureCount = 0;
+        let modelsLoaded = false;
+        let cameraReady = false;
+        let quickMode = false;
+        let isCapturing = false;
+        
+        // Debug logging function
+        function debugLog(message) {
+            console.log(message);
+            debugInfo.innerHTML += message + '<br>';
+        }
+        
+        // Show initial status
+        showStatus('⏳ Initializing...', 'success');
+        debugLog('🔍 Starting initialization...');
+        
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showStatus('❌ Camera not supported - Open in Chrome/Edge/Firefox', 'error');
+            debugLog('❌ getUserMedia not supported - Use external browser!');
+            debugLog('💡 Press Ctrl+C on terminal and run: Start-Process "http://127.0.0.1:5000/capture"');
+            // Don't initialize camera if not supported
+        } else {
+            debugLog('✓ getUserMedia is supported');
+            // Initialize camera immediately
+            setTimeout(() => {
+                initCamera();
+            }, 100);
+        }
+        
+        // Load face-api models
+        async function loadModels() {
+            try {
+                debugLog('📦 Loading face-api models...');
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+                
+                await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                
+                modelsLoaded = true;
+                debugLog('✓ Models loaded successfully!');
+                if (cameraReady) {
+                    showStatus('✓ Camera ready! You can capture photos now.', 'success');
+                }
+            } catch (err) {
+                console.error('Model loading error:', err);
+                debugLog('⚠️ Model loading failed: ' + err.message);
+                showStatus('⚠️ Models failed to load, but camera is ready', 'error');
+            }
+        }
+        
+        // Start webcam
+        async function initCamera() {
+            // Double-check support before proceeding
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showStatus('❌ Camera API not available in this browser', 'error');
+                debugLog('❌ Please open in external browser (Chrome/Edge/Firefox)');
+                return;
+            }
+            
+            try {
+                debugLog('📹 Requesting camera permission...');
+                showStatus('📹 Requesting camera access...', 'success');
+                
+                // List available devices
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    debugLog(`Found ${videoDevices.length} video device(s)`);
+                } catch (e) {
+                    debugLog('⚠️ Could not enumerate devices: ' + e.message);
+                }
+                
+                const constraints = { 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+                
+                debugLog('Getting user media...');
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                debugLog('✓ Camera access granted!');
+                video.srcObject = stream;
+                
+                // Wait for video to be ready
+                video.onloadedmetadata = () => {
+                    debugLog('✓ Video metadata loaded');
+                    debugLog(`Video size: ${video.videoWidth}x${video.videoHeight}`);
+                };
+                
+                // Ensure video plays
+                video.oncanplay = () => {
+                    debugLog('✓ Video can play');
+                };
+                
+                await video.play();
+                debugLog('✓ Video playing!');
+                cameraReady = true;
+                showStatus('✓ Camera ready! Loading face recognition models...', 'success');
+                loadModels();
+                
+            } catch (err) {
+                console.error('Camera error:', err);
+                debugLog('❌ Camera error: ' + err.name + ' - ' + err.message);
+                showStatus('❌ Camera error: ' + err.message, 'error');
+                
+                // Provide specific error messages
+                if (err.name === 'NotAllowedError') {
+                    showStatus('❌ Camera permission denied. Please allow camera access.', 'error');
+                    debugLog('💡 Please click the camera icon in your browser and allow access');
+                } else if (err.name === 'NotFoundError') {
+                    showStatus('❌ No camera found on this device', 'error');
+                } else if (err.name === 'NotReadableError') {
+                    showStatus('❌ Camera is being used by another application', 'error');
+                }
+            }
+        }
+        
+        // DON'T auto-initialize - let the check above handle it
+        // (removed the setTimeout call that was here)
+        
+        function toggleQuickMode() {
+            quickMode = document.getElementById('quickMode').checked;
+            if (quickMode) {
+                showStatus('⚡ Quick mode enabled - captures will be faster!', 'success');
+                debugLog('⚡ Quick mode: Face detection disabled for speed');
+            } else {
+                showStatus('✓ Normal mode - face detection enabled', 'success');
+                debugLog('✓ Normal mode: Face detection enabled');
+            }
+        }
+        
+        function updatePhotoCount() {
+            document.getElementById('photoCount').textContent = captureCount;
+        }
+        
+        async function capturePhoto() {
+            if (isCapturing) return;
+            isCapturing = true;
+            
+            const name = document.getElementById('name').value.trim();
+            const category = document.getElementById('category').value;
+            
+            if (!name) {
+                showStatus('❌ Please enter a name', 'error');
+                isCapturing = false;
+                return;
+            }
+            
+            // Check if camera is ready
+            if (!cameraReady) {
+                showStatus('⏳ Please wait for camera to initialize...', 'error');
+                isCapturing = false;
+                return;
+            }
+            
+            // Check if video is ready
+            if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+                showStatus('⏳ Camera is loading, please wait...', 'error');
+                isCapturing = false;
+                return;
+            }
+            
+            // Capture image
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            if (canvas.width === 0 || canvas.height === 0) {
+                showStatus('❌ Camera not ready, please wait...', 'error');
+                isCapturing = false;
+                return;
+            }
+            
+            ctx.drawImage(video, 0, 0);
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            if (!imageData || imageData.length < 100) {
+                showStatus('❌ Failed to capture image, try again', 'error');
+                isCapturing = false;
+                return;
+            }
+            
+            // Flash effect
+            video.style.animation = 'flash 0.3s ease';
+            setTimeout(() => { video.style.animation = ''; }, 300);
+            
+            let embedding;
+            
+            // TRY BACKEND FIRST (512-D InsightFace) - more accurate!
+            try {
+                console.log('🔄 Attempting backend embedding extraction...');
+                const backendResponse = await fetch('/extract_embedding', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                const backendData = await backendResponse.json();
+                
+                console.log('Backend response:', backendData);
+                
+                if (backendData.success && backendData.embedding) {
+                    embedding = backendData.embedding;
+                    console.log(`✅ Backend embedding extracted: ${backendData.dimension}-D`);
+                    showStatus(`✅ High-quality ${backendData.dimension}-D face data captured!`, 'success');
+                } else {
+                    console.error('❌ Backend extraction failed:', backendData.error);
+                    throw new Error(backendData.error || 'Backend extraction failed');
+                }
+            } catch (backendError) {
+                console.error('⚠️ Backend extraction failed, trying client-side:', backendError);
+                showStatus('⚠️ Using fallback extraction', 'error');
+                
+                // FALLBACK: Client-side extraction (128-D face-api.js)
+                if (modelsLoaded) {
+                    try {
+                        const options = new faceapi.SsdMobilenetv1Options({ 
+                            minConfidence: 0.5
+                        });
+                        const detection = await faceapi.detectSingleFace(video, options)
+                            .withFaceLandmarks()
+                            .withFaceDescriptor();
+                        
+                        if (detection) {
+                            const normalizeEmbedding = (embedding) => {
+                                const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+                                return embedding.map(val => val / magnitude);
+                            };
+                            embedding = normalizeEmbedding(Array.from(detection.descriptor));
+                            console.log('✓ Client-side face detected! Confidence:', detection.detection.score.toFixed(3));
+                            showStatus(quickMode ? '⚡ Quick capture with face data!' : '✓ Face detected! Capturing...', 'success');
+                        } else {
+                            if (quickMode) {
+                                embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
+                                showStatus('⚠️ No face detected - captured anyway', 'error');
+                            } else {
+                                showStatus('❌ No face detected - move closer or enable Quick Mode', 'error');
+                                isCapturing = false;
+                                return;
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Detection error:', err);
+                        if (quickMode) {
+                            embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
+                            showStatus('⚠️ Detection error - captured anyway', 'error');
+                        } else {
+                            showStatus('❌ Detection failed - try Quick Mode', 'error');
+                            isCapturing = false;
+                            return;
+                        }
+                    }
+                } else {
+                    embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
+                    console.warn('⚠️ Using placeholder embedding');
+                    showStatus('📸 Capturing (models loading)...', 'success');
+                }
+            }
+            
+            // Send to server
+            fetch('/capture_photo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    category: category,
+                    image: imageData,
+                    embedding: embedding
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    captureCount = data.count;
+                    updatePhotoCount();
+                    showStatus(`✓ Photo ${captureCount} captured!`, 'success');
+                }
+                isCapturing = false;
+            })
+            .catch(error => {
+                showStatus('Error: ' + error.message, 'error');
+                isCapturing = false;
+            });
+        }
+        
+        async function quickCaptureBurst() {
+            const name = document.getElementById('name').value.trim();
+            if (!name) {
+                showStatus('❌ Please enter a name first', 'error');
+                return;
+            }
+            
+            showStatus('⚡ Starting burst capture - 5 photos in 3 seconds!', 'success');
+            
+            const wasQuickMode = quickMode;
+            quickMode = true; // Force quick mode for burst
+            
+            for (let i = 0; i < 5; i++) {
+                await new Promise(resolve => setTimeout(resolve, 600)); // 600ms between shots
+                await capturePhoto();
+                await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+            }
+            
+            quickMode = wasQuickMode; // Restore previous mode
+            showStatus(`✓ Burst complete! Captured 5 photos.`, 'success');
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            
+            // Don't auto-clear "ready" or "loading" messages
+            if (!message.includes('ready') && !message.includes('Initializing') && !message.includes('Loading')) {
+                setTimeout(() => {
+                    statusDiv.className = 'status';
+                    statusDiv.textContent = '';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>

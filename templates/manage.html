@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FacePass - Manage Data</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%);
+            min-height: 100vh; padding: 20px; color: white;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 36px; margin-bottom: 10px; }
+        .card {
+            background: rgba(20, 20, 35, 0.95); border-radius: 20px;
+            padding: 30px; margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        .stats-overview {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, rgba(51, 153, 255, 0.2), rgba(77, 187, 111, 0.2));
+            border-radius: 15px; padding: 25px; text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        .stat-value {
+            font-size: 48px; font-weight: bold; margin-bottom: 10px;
+            background: linear-gradient(135deg, #3399ff, #4dbb6f);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-label { color: #8ab4f8; font-size: 16px; }
+        .people-list { margin-top: 20px; }
+        .person-card {
+            background: rgba(30, 30, 45, 0.9); border-radius: 12px;
+            padding: 20px; margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .person-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(51, 153, 255, 0.3);
+            border-color: #3399ff;
+        }
+        .person-info { flex: 1; }
+        .person-name { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+        .person-details { color: #8ab4f8; font-size: 14px; }
+        .person-actions { display: flex; gap: 10px; }
+        .btn {
+            padding: 10px 20px; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: bold; cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); }
+        .btn-delete { background: linear-gradient(135deg, #cc3366 0%, #991144 100%); color: white; }
+        .btn-export { background: linear-gradient(135deg, #3399ff 0%, #0066cc 100%); color: white; }
+        .btn-home { background: linear-gradient(135deg, #666 0%, #444 100%); color: white; width: 100%; }
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: #778899;
+        }
+        .empty-state h3 { font-size: 24px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Manage Data</h1>
+            <p>View statistics and manage trained faces</p>
+        </div>
+        
+        <div class="card">
+            <h2 style="margin-bottom: 20px;">📈 Statistics</h2>
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-people">0</div>
+                    <div class="stat-label">People Trained</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-photos">0</div>
+                    <div class="stat-label">Total Photos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-photos">0</div>
+                    <div class="stat-label">Avg Photos/Person</div>
+                </div>
+            </div>
+            
+            <button class="btn btn-export" onclick="exportData()">💾 Export All Data</button>
+        </div>
+        
+        <div class="card">
+            <h2 style="margin-bottom: 20px;">👥 Trained People</h2>
+            <div id="people-list" class="people-list"></div>
+        </div>
+        
+        <a href="/" class="btn btn-home" style="display:block; text-align:center; text-decoration:none;">🏠 Back to Home</a>
+    </div>
+    
+    <script>
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/statistics');
+                const stats = await response.json();
+                
+                document.getElementById('total-people').textContent = stats.total_people;
+                document.getElementById('total-photos').textContent = stats.total_photos;
+                
+                const avgPhotos = stats.total_people > 0 
+                    ? (stats.total_photos / stats.total_people).toFixed(1) 
+                    : 0;
+                document.getElementById('avg-photos').textContent = avgPhotos;
+                
+                // Display people list
+                const peopleList = document.getElementById('people-list');
+                peopleList.innerHTML = '';
+                
+                if (stats.people_details.length === 0) {
+                    peopleList.innerHTML = `
+                        <div class="empty-state">
+                            <h3>No Training Data</h3>
+                            <p>Capture some faces to get started!</p>
+                        </div>
+                    `;
+                } else {
+                    stats.people_details.forEach(person => {
+                        const card = document.createElement('div');
+                        card.className = 'person-card';
+                        card.innerHTML = `
+                            <div class="person-info">
+                                <div class="person-name">${person.name}</div>
+                                <div class="person-details">
+                                    ${person.category} • ${person.photo_count} photo${person.photo_count !== 1 ? 's' : ''}
+                                </div>
+                            </div>
+                            <div class="person-actions">
+                                <button class="btn btn-delete" onclick="deletePerson(${person.id}, '${person.name}')">
+                                    🗑️ Delete
+                                </button>
+                            </div>
+                        `;
+                        peopleList.appendChild(card);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+        
+        async function deletePerson(id, name) {
+            if (!confirm(`Are you sure you want to delete ${name}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/delete_person/${id}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    alert(`${name} deleted successfully!`);
+                    loadStatistics(); // Reload
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting person: ' + error.message);
+            }
+        }
+        
+        async function exportData() {
+            try {
+                const response = await fetch('/export_data');
+                const data = await response.json();
+                
+                // Create download
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `facepass_data_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert('Data exported successfully!');
+            } catch (error) {
+                alert('Error exporting data: ' + error.message);
+            }
+        }
+        
+        // Load on page load
+        loadStatistics();
+    </script>
+</body>
+</html>

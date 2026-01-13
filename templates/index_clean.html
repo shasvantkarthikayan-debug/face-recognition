@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FacePass - Home</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .title-card {
+            background: rgba(15, 15, 30, 0.9);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .title-card h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .title-card p {
+            color: #8ab4f8;
+            font-size: 18px;
+        }
+        
+        .button-card {
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 20px;
+            margin: 15px 0;
+            border: none;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-capture {
+            background: linear-gradient(135deg, #3399ff 0%, #0066cc 100%);
+            color: white;
+        }
+        
+        .btn-train {
+            background: linear-gradient(135deg, #4dbb6f 0%, #2d8a4f 100%);
+            color: white;
+        }
+        
+        .btn-recognize {
+            background: linear-gradient(135deg, #cc3366 0%, #991144 100%);
+            color: white;
+        }
+        
+        .btn-manage {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            color: white;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #778899;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title-card">
+            <h1>🎯 FacePass</h1>
+            <p>Advanced Face Recognition System</p>
+        </div>
+        
+        <div class="button-card">
+            <a href="/capture" class="btn btn-capture">📸 Capture Faces</a>
+            <a href="/train" class="btn btn-train">🧠 Train Model</a>
+            <a href="/recognize" class="btn btn-recognize">🔍 Start Recognition</a>
+            <a href="/manage" class="btn btn-manage">📊 Manage Data</a>
+        </div>
+        
+        <div class="footer">
+            Powered by face-api.js & Flask
+        </div>
+    </div>
+</body>
+</html>

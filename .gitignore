@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+*.egg
+
+# Flask
+instance/
+.webassets-cache
+
+# Face data (don't commit personal photos)
+data/
+known_faces/
+*.npy
+encodings.npy
+names.npy
+categories.npy
+face_data.json
+face_embeddings.json
+
+# Backup files
+*.backup
+*.backup_*
+*_backup_*
+
+# SSL certificates
+*.pem
+cert.pem
+key.pem
+
+# Model files (download via setup script)
+models/*.onnx
+models/*.zip
+models/*.task
+models/temp_extract/
+models/buffalo_*.zip
+
+# Temp files
+working
+escort_data.json
+students.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
