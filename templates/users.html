@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FacePass - User Management</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg1: #0f0c29;
+      --bg2: #302b63;
+      --bg3: #24243e;
+      --card: rgba(255,255,255,0.07);
+      --card2: rgba(20,20,35,0.55);
+      --border: rgba(255,255,255,0.14);
+      --text: #ffffff;
+      --muted: rgba(255,255,255,0.70);
+      --accent1: #8ab4f8;
+      --accent2: #a363ff;
+      --good: #00ff8c;
+      --bad: #ff4d4d;
+    }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 22px;
+      color: var(--text);
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 50%, var(--bg3) 100%);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 50%, rgba(138, 180, 248, 0.12) 0%, transparent 55%),
+        radial-gradient(circle at 82% 85%, rgba(163, 99, 255, 0.10) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { max-width: 1050px; margin: 0 auto; position: relative; z-index: 1; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand .logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent1) 0%, var(--accent2) 100%);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+
+    h1 { margin: 0; font-size: 22px; }
+    .subtitle { margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    a {
+      color: var(--accent1);
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.22);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .pill.primary {
+      background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+      border-color: rgba(255,255,255,0.18);
+    }
+
+    .pill.danger {
+      background: rgba(255, 77, 77, 0.10);
+      border-color: rgba(255, 77, 77, 0.25);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .card {
+      background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(20,20,35,0.55) 100%);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(14px);
+    }
+
+    .section-title {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #cfe0ff;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .field { flex: 1; min-width: 140px; }
+    label { display: block; font-size: 12px; color: #c4d0ff; margin-bottom: 6px; }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.26);
+      color: #fff;
+      outline: none;
+    }
+
+    input::placeholder { color: rgba(255,255,255,0.55); }
+
+    .hint { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    .btn {
+      padding: 12px 14px;
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.35);
+    }
+
+    .btn.secondary {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: none;
+    }
+
+    .btn.danger {
+      background: rgba(255, 77, 77, 0.14);
+      border: 1px solid rgba(255, 77, 77, 0.25);
+      box-shadow: none;
+    }
+
+    .btn.small {
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(25%);
+    }
+
+    .msg { padding: 10px 12px; border-radius: 14px; margin-top: 10px; font-weight: 700; }
+    .msg.ok { background: rgba(0, 255, 140, 0.12); border: 1px solid rgba(0, 255, 140, 0.25); }
+    .msg.err { background: rgba(255, 77, 77, 0.12); border: 1px solid rgba(255, 77, 77, 0.25); }
+
+    .table-wrap { overflow: auto; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      font-size: 14px;
+      vertical-align: middle;
+    }
+    th { color: #c4d0ff; font-weight: 800; background: rgba(0,0,0,0.22); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.22);
+    }
+    .badge.admin { border-color: rgba(0,198,255,0.35); }
+    .badge.user { border-color: rgba(163,99,255,0.28); }
+    .you { color: var(--muted); font-size: 12px; margin-left: 8px; }
+
+    .meta {
+      color: rgba(255,255,255,0.70);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    details.meta-details summary {
+      cursor: pointer;
+      list-style: none;
+      color: #c4d0ff;
+      font-weight: 800;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    details.meta-details summary::-webkit-details-marker { display: none; }
+    details.meta-details summary::after {
+      content: '▾';
+      margin-left: 8px;
+      color: rgba(255,255,255,0.65);
+      font-weight: 900;
+    }
+    details.meta-details[open] summary::after { content: '▴'; }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .toolbar .left {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .toolbar input[type="search"] {
+      width: min(380px, 100%);
+    }
+
+    .menu {
+      position: relative;
+      display: inline-block;
+    }
+
+    .menu-btn {
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.22);
+      color: #fff;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .menu-panel {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      min-width: 220px;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(20,20,35,0.92);
+      box-shadow: 0 20px 70px rgba(0,0,0,0.55);
+      backdrop-filter: blur(16px);
+      z-index: 50;
+    }
+
+    .menu-panel.open { display: block; }
+
+    .menu-panel .menu-title {
+      color: rgba(255,255,255,0.75);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .menu-panel .menu-row { display: grid; gap: 8px; }
+    .menu-panel form { margin: 0; }
+
+    .menu-panel button {
+      width: 100%;
+      text-align: left;
+    }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 9999;
+      padding: 18px;
+    }
+
+    .modal {
+      max-width: 520px;
+      margin: 60px auto;
+      background: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(20,20,35,0.72) 100%);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+      backdrop-filter: blur(16px);
+    }
+    .modal h3 { margin: 0 0 10px 0; }
+    .modal .muted { color: var(--muted); font-size: 12px; }
+    .modal .footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">FP</div>
+        <div>
+          <h1>Admin • Users</h1>
+          <div class="subtitle">Create, promote, reset passwords, and remove users. Passwords are stored hashed in <code>data/users.json</code>.</div>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="pill" href="/">← Main menu</a>
+        <a class="pill danger" href="/logout">Logout</a>
+      </div>
+    </div>
+
+    {% if message %}
+      <div class="card msg ok">{{ message }}</div>
+    {% endif %}
+    {% if error %}
+      <div class="card msg err">{{ error }}</div>
+    {% endif %}
+
+    <div class="grid">
+      <div class="card">
+        <div class="section-title">Create / Update</div>
+        <form method="POST" action="/users" autocomplete="off">
+          <input type="hidden" name="action" value="create_update" />
+          <div class="row">
+            <div class="field">
+              <label for="username">Username</label>
+              <input id="username" name="username" placeholder="e.g. teacher1" required />
+              <details class="meta-details" style="margin-top:8px;">
+                <summary>Username rules</summary>
+                <div class="hint">Allowed: letters, numbers, <b>.</b> <b>_</b> <b>-</b> (3-32 chars).</div>
+              </details>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 10px;">
+            <div class="field">
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" placeholder="Leave blank to keep existing password (if user exists)" />
+              <div class="hint">New users require a password. Existing users: leave blank to keep current password.</div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 10px;">
+            <div class="field">
+              <label for="role">Role</label>
+              <select id="role" name="role">
+                <option value="user" selected>User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; display:flex; gap:10px; align-items:center;">
+            <button class="btn" type="submit">Save User</button>
+            <button class="btn secondary" type="button" onclick="document.querySelector('#username').value=''; document.querySelector('#password').value='';">Clear</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Existing Users</div>
+
+        <div class="toolbar">
+          <div class="left">
+            <div class="field" style="min-width: 260px;">
+              <label for="userSearch">Search</label>
+              <input id="userSearch" type="search" placeholder="Search by username…" oninput="filterUsers()" />
+            </div>
+            <div class="field" style="min-width: 200px;">
+              <label for="roleFilter">Role</label>
+              <select id="roleFilter" onchange="filterUsers()">
+                <option value="all" selected>All</option>
+                <option value="admin">Admin</option>
+                <option value="user">User</option>
+              </select>
+            </div>
+          </div>
+          <div class="subtitle" id="userCount"></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 34%;">User</th>
+                <th style="width: 16%;">Role</th>
+                <th style="width: 30%;">Meta</th>
+                <th style="width: 20%;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+              <tr class="user-row" data-username="{{ u.username|lower }}" data-role="{{ u.role }}">
+                <td>
+                  <b>{{ u.username }}</b>
+                  {% if current_user and u.username == current_user %}
+                    <span class="you">(you)</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if u.role == 'admin' %}
+                    <span class="badge admin">Admin</span>
+                  {% else %}
+                    <span class="badge user">User</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <details class="meta-details">
+                    <summary>Details</summary>
+                    <div class="meta" style="margin-top:8px;">
+                      <div><b>Created:</b> {{ u.created_at }}</div>
+                      <div><b>Updated:</b> {{ u.updated_at }}</div>
+                    </div>
+                  </details>
+                </td>
+                <td>
+                  <div class="menu">
+                    <button class="menu-btn" type="button" onclick="toggleMenu(event, 'm{{ loop.index }}')">Actions ▾</button>
+                    <div id="m{{ loop.index }}" class="menu-panel" onclick="event.stopPropagation()">
+                      <div class="menu-title">{{ u.username }}</div>
+                      <div class="menu-row">
+                        {% if u.role == 'admin' %}
+                          <form method="POST" action="/users">
+                            <input type="hidden" name="action" value="demote" />
+                            <input type="hidden" name="username" value="{{ u.username }}" />
+                            <button class="btn small secondary" type="submit" {% if current_user and u.username == current_user %}disabled title="Can't demote yourself"{% endif %}>Demote to User</button>
+                          </form>
+                        {% else %}
+                          <form method="POST" action="/users">
+                            <input type="hidden" name="action" value="promote" />
+                            <input type="hidden" name="username" value="{{ u.username }}" />
+                            <button class="btn small" type="submit">Promote to Admin</button>
+                          </form>
+                        {% endif %}
+
+                        <button class="btn small secondary" type="button" data-username="{{ u.username }}" onclick="openResetModal(this.dataset.username); closeAllMenus();">Reset Password</button>
+
+                        <form method="POST" action="/users" data-username="{{ u.username }}" onsubmit="closeAllMenus(); return confirmDelete(this.dataset.username);">
+                          <input type="hidden" name="action" value="delete" />
+                          <input type="hidden" name="username" value="{{ u.username }}" />
+                          <button class="btn small danger" type="submit" {% if current_user and u.username == current_user %}disabled title="Can't delete yourself"{% endif %}>Delete User</button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              {% if not users %}
+              <tr>
+                <td colspan="4" class="subtitle">No users yet.</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="hint" style="margin-top: 10px;">
+          Tips: Use <b>Promote</b> / <b>Demote</b> to change roles. <b>Reset PW</b> sets a new password. You can’t delete yourself, and the app won’t allow removing the last admin.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="resetBackdrop" class="modal-backdrop" onclick="closeResetModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>Reset password</h3>
+      <div class="muted" id="resetUserLabel">User: </div>
+      <form method="POST" action="/users" style="margin-top: 12px;">
+        <input type="hidden" name="action" value="reset_password" />
+        <input type="hidden" name="username" id="resetUsername" value="" />
+        <div class="row">
+          <div class="field">
+            <label for="resetPassword">New password</label>
+            <input id="resetPassword" name="password" type="password" placeholder="min 4 chars" required />
+          </div>
+        </div>
+        <div class="footer">
+          <button class="btn secondary" type="button" onclick="closeResetModal()">Cancel</button>
+          <button class="btn" type="submit">Reset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function closeAllMenus() {
+      document.querySelectorAll('.menu-panel.open').forEach(p => p.classList.remove('open'));
+    }
+
+    function toggleMenu(ev, id) {
+      ev.stopPropagation();
+      const panel = document.getElementById(id);
+      if (!panel) return;
+      const isOpen = panel.classList.contains('open');
+      closeAllMenus();
+      if (!isOpen) panel.classList.add('open');
+    }
+
+    window.addEventListener('click', () => closeAllMenus());
+
+    function openResetModal(username) {
+      const backdrop = document.getElementById('resetBackdrop');
+      const label = document.getElementById('resetUserLabel');
+      const userInput = document.getElementById('resetUsername');
+      const pwInput = document.getElementById('resetPassword');
+      label.textContent = 'User: ' + username;
+      userInput.value = username;
+      pwInput.value = '';
+      backdrop.style.display = 'block';
+      setTimeout(() => pwInput.focus(), 50);
+    }
+
+    function closeResetModal() {
+      const backdrop = document.getElementById('resetBackdrop');
+      if (backdrop) backdrop.style.display = 'none';
+    }
+
+    function confirmDelete(username) {
+      return confirm("Delete user '" + username + "'? This cannot be undone.");
+    }
+
+    function filterUsers() {
+      const q = (document.getElementById('userSearch')?.value || '').trim().toLowerCase();
+      const role = (document.getElementById('roleFilter')?.value || 'all').toLowerCase();
+      let visible = 0;
+      document.querySelectorAll('tr.user-row').forEach(tr => {
+        const uname = tr.getAttribute('data-username') || '';
+        const r = (tr.getAttribute('data-role') || 'user').toLowerCase();
+        const matchQ = !q || uname.includes(q);
+        const matchRole = (role === 'all') || (r === role);
+        const show = matchQ && matchRole;
+        tr.style.display = show ? '' : 'none';
+        if (show) visible += 1;
+      });
+
+      const total = document.querySelectorAll('tr.user-row').length;
+      const countEl = document.getElementById('userCount');
+      if (countEl) countEl.textContent = visible + ' / ' + total + ' shown';
+    }
+
+    filterUsers();
+  </script>
+</body>
+</html>

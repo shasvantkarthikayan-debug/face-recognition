@@ -399,52 +399,9 @@
                 }
             } catch (backendError) {
                 console.error('⚠️ Backend extraction failed, trying client-side:', backendError);
-                showStatus('⚠️ Using fallback extraction', 'error');
-                
-                // FALLBACK: Client-side extraction (128-D face-api.js)
-                if (modelsLoaded) {
-                    try {
-                        const options = new faceapi.SsdMobilenetv1Options({ 
-                            minConfidence: 0.5
-                        });
-                        const detection = await faceapi.detectSingleFace(video, options)
-                            .withFaceLandmarks()
-                            .withFaceDescriptor();
-                        
-                        if (detection) {
-                            const normalizeEmbedding = (embedding) => {
-                                const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-                                return embedding.map(val => val / magnitude);
-                            };
-                            embedding = normalizeEmbedding(Array.from(detection.descriptor));
-                            console.log('✓ Client-side face detected! Confidence:', detection.detection.score.toFixed(3));
-                            showStatus(quickMode ? '⚡ Quick capture with face data!' : '✓ Face detected! Capturing...', 'success');
-                        } else {
-                            if (quickMode) {
-                                embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
-                                showStatus('⚠️ No face detected - captured anyway', 'error');
-                            } else {
-                                showStatus('❌ No face detected - move closer or enable Quick Mode', 'error');
-                                isCapturing = false;
-                                return;
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Detection error:', err);
-                        if (quickMode) {
-                            embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
-                            showStatus('⚠️ Detection error - captured anyway', 'error');
-                        } else {
-                            showStatus('❌ Detection failed - try Quick Mode', 'error');
-                            isCapturing = false;
-                            return;
-                        }
-                    }
-                } else {
-                    embedding = new Array(128).fill(0).map(() => Math.random() * 0.5);
-                    console.warn('⚠️ Using placeholder embedding');
-                    showStatus('📸 Capturing (models loading)...', 'success');
-                }
+                showStatus('❌ Face embedding extraction failed. Move closer, improve lighting, and try again.', 'error');
+                isCapturing = false;
+                return;
             }
             
             // Send to server

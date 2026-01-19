@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Age & Gender Detection - FacePass</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.8); }
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        
+        .video-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .video-container {
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        video {
+            width: 100%;
+            height: auto;
+            display: none;
+            border-radius: 15px;
+        }
+        
+        canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 15px;
+        }
+        
+        .overlay-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            min-width: 200px;
+        }
+        
+        .overlay-info div {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .overlay-info .label {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+        
+        .overlay-info .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .status-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(56, 239, 125, 0.9);
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-badge.inactive {
+            background: rgba(238, 9, 121, 0.9);
+            animation: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(56, 239, 125, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+            color: white;
+        }
+        
+        .info-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            animation: glow 3s infinite;
+        }
+        
+        .stat-card h3 {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
+            font-size: 42px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-sub {
+            font-size: 18px;
+            opacity: 0.7;
+        }
+        
+        .gender-icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #38ef7d 0%, #11998e 100%);
+            transition: width 0.3s;
+        }
+        
+        .info-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+        }
+        
+        .info-section h3 {
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .info-section p {
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 50px;
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-btn">← Back to Home</a>
+    
+    <div class="container">
+        <div class="header">
+            <h1>⚥ Gender Detection</h1>
+            <p>Real-time AI-powered gender recognition</p>
+        </div>
+        
+        <div class="main-container">
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                    <div class="status-badge inactive" id="statusBadge">Camera Off</div>
+                    <div class="overlay-info" id="overlayInfo" style="display: none;">
+                        <div>
+                            <div class="label">Gender</div>
+                            <div class="value" id="genderDisplay" style="font-size: 32px;">--</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn-primary" id="startBtn">Start Camera</button>
+                    <button class="btn-danger" id="stopBtn" style="display: none;">Stop Camera</button>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <div class="stat-card">
+                    <h3>Gender</h3>
+                    <div class="gender-icon" id="genderIcon">👤</div>
+                    <div class="stat-value" id="genderValue" style="font-size: 32px;">Unknown</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceFill" style="width: 0%"></div>
+                    </div>
+                    <div class="stat-sub" id="confidenceText">0% confidence</div>
+                </div>
+                
+                <div class="info-section">
+                    <h3>ℹ️ How it works</h3>
+                    <p>
+                        <strong>DeepFace AI</strong> analyzes facial features to estimate age and detect gender. 
+                        The system uses deep learning models trained on thousands of faces for accurate predictions.
+                    </p>
+                    <br>
+                    <p style="font-size: 14px; opacity: 0.7;">
+                        Note: Estimates may vary based on lighting, angle, and image quality. 
+                        This is for entertainment and research purposes only.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const overlayInfo = document.getElementById('overlayInfo');
+        
+        const genderDisplay = document.getElementById('genderDisplay');
+        const genderValue = document.getElementById('genderValue');
+        const genderIcon = document.getElementById('genderIcon');
+        const confidenceFill = document.getElementById('confidenceFill');
+        const confidenceText = document.getElementById('confidenceText');
+        
+        let stream = null;
+        let analyzing = false;
+        
+        startBtn.addEventListener('click', startCamera);
+        stopBtn.addEventListener('click', stopCamera);
+        
+        async function startCamera() {
+            // Most browsers require a secure context for camera access.
+            // localhost/127.0.0.1 are treated as secure even over http.
+            const isLocalhost = (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+            if (!window.isSecureContext && !isLocalhost) {
+                alert('Camera access requires HTTPS. Start the server with HTTPS (try: python run_prod.py) or open the site on https://...');
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Camera API not available in this browser. Please use a modern browser (Chrome/Edge) and reload.');
+                return;
+            }
+
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+
+                // Ensure metadata is ready before using videoWidth/videoHeight
+                await new Promise((resolve) => {
+                    if (video.readyState >= 1) {
+                        resolve();
+                        return;
+                    }
+                    video.onloadedmetadata = () => resolve();
+                });
+
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+
+                // Some browsers require an explicit play() after user interaction.
+                try {
+                    await video.play();
+                } catch (e) {
+                    console.warn('video.play() failed (may still work via canvas draw):', e);
+                }
+
+                console.log('Camera started:', canvas.width, 'x', canvas.height);
+                
+                analyzing = true;
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                statusBadge.textContent = '● Active';
+                statusBadge.classList.remove('inactive');
+                overlayInfo.style.display = 'block';
+                
+                drawLoop(); // Continuous video drawing
+                analyzeLoop(); // Periodic analysis
+                
+            } catch (err) {
+                console.error('Camera error:', err);
+                const name = err && err.name ? err.name : 'CameraError';
+                let message = 'Unable to access camera.';
+                if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+                    message = 'Camera permission denied. Please allow camera access in your browser settings and reload.';
+                } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+                    message = 'No camera device found. Please connect a webcam and reload.';
+                } else if (name === 'NotReadableError') {
+                    message = 'Camera is already in use by another app (Zoom/Teams/etc). Close it and try again.';
+                } else if (name === 'OverconstrainedError') {
+                    message = 'Requested camera resolution not supported. Try a different camera/device.';
+                } else if (name === 'SecurityError') {
+                    message = 'Camera blocked due to browser security policy. Use HTTPS (or localhost) and try again.';
+                }
+                alert(message + '\n\nDetails: ' + name);
+            }
+        }
+        
+        function drawLoop() {
+            if (!analyzing) return;
+            
+            // Draw video frame continuously for live playback
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            requestAnimationFrame(drawLoop);
+        }
+        
+        function stopCamera() {
+            analyzing = false;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            stream = null;
+            try { video.srcObject = null; } catch (e) {}
+            
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            statusBadge.textContent = 'Camera Off';
+            statusBadge.classList.add('inactive');
+            overlayInfo.style.display = 'none';
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        async function analyzeLoop() {
+            if (!analyzing) return;
+            
+            try {
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                const response = await fetch('/analyze_age_gender', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                const result = await response.json();
+                
+                if (result.face_detected) {
+                    updateDisplay(result);
+                } else {
+                    console.log('No face detected:', result);
+                }
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+            }
+            
+            if (analyzing) {
+                setTimeout(analyzeLoop, 300); // Analyze ~3 times per second
+            }
+        }
+        
+        function drawBoundingBox(bbox) {
+            // Draw bounding box
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(bbox.x, bbox.y, bbox.w, bbox.h);
+            
+            // Draw corner accents
+            const cornerLength = 20;
+            ctx.strokeStyle = '#38ef7d';
+            ctx.lineWidth = 6;
+            
+            // Top-left corner
+            ctx.beginPath();
+            ctx.moveTo(bbox.x, bbox.y + cornerLength);
+            ctx.lineTo(bbox.x, bbox.y);
+            ctx.lineTo(bbox.x + cornerLength, bbox.y);
+            ctx.stroke();
+            
+            // Top-right corner
+            ctx.beginPath();
+            ctx.moveTo(bbox.x + bbox.w - cornerLength, bbox.y);
+            ctx.lineTo(bbox.x + bbox.w, bbox.y);
+            ctx.lineTo(bbox.x + bbox.w, bbox.y + cornerLength);
+            ctx.stroke();
+            
+            // Bottom-left corner
+            ctx.beginPath();
+            ctx.moveTo(bbox.x, bbox.y + bbox.h - cornerLength);
+            ctx.lineTo(bbox.x, bbox.y + bbox.h);
+            ctx.lineTo(bbox.x + cornerLength, bbox.y + bbox.h);
+            ctx.stroke();
+            
+            // Bottom-right corner
+            ctx.beginPath();
+            ctx.moveTo(bbox.x + bbox.w - cornerLength, bbox.y + bbox.h);
+            ctx.lineTo(bbox.x + bbox.w, bbox.y + bbox.h);
+            ctx.lineTo(bbox.x + bbox.w, bbox.y + bbox.h - cornerLength);
+            ctx.stroke();
+        }
+        
+        function updateDisplay(result) {
+            const gender = result.gender;
+            const confidence = result.gender_confidence;
+            
+            // Update overlay
+            genderDisplay.textContent = gender === 'Man' ? '👨' : '👩';
+            
+            // Update stats panel
+            genderValue.textContent = gender;
+            genderIcon.textContent = gender === 'Man' ? '👨' : '👩';
+            
+            confidenceFill.style.width = confidence + '%';
+            confidenceText.textContent = confidence.toFixed(1) + '% confidence';
+        }
+    </script>
+</body>
+</html>

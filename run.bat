@@ -13,6 +13,10 @@ if exist ".venv\Scripts\activate.bat" (
 )
 
 REM Start the application
-python app.py
+if exist ".venv\Scripts\python.exe" (
+    .venv\Scripts\python.exe app.py
+) else (
+    python app.py
+)
 
 pause

@@ -3,40 +3,373 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FacePass - Home v2.0</title>
+    <title>FacePass - Advanced Face Recognition</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%); min-height: 100vh; padding: 20px; color: white; }
-        .container { width: 90%; max-width: 1200px; margin: 0 auto; }
-        .title-card { background: rgba(15, 15, 30, 0.9); border-radius: 20px; padding: 40px; text-align: center; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
-        .title-card h1 { font-size: 48px; margin-bottom: 10px; }
-        .title-card p { color: #8ab4f8; font-size: 18px; }
-        .button-card { background: rgba(20, 20, 35, 0.95); border-radius: 20px; padding: 40px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
-        .btn { width: 100%; padding: 20px; margin: 15px 0; border: none; border-radius: 15px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; text-decoration: none; display: block; text-align: center; }
-        .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); }
-        .btn-capture { background: linear-gradient(135deg, #3399ff 0%, #0066cc 100%); color: white; }
-        .btn-train { background: linear-gradient(135deg, #4dbb6f 0%, #2d8a4f 100%); color: white; }
-        .btn-recognize { background: linear-gradient(135deg, #cc3366 0%, #991144 100%); color: white; }
-        .btn-manage { background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(138, 180, 248, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(138, 180, 248, 0.6), 0 0 60px rgba(138, 180, 248, 0.4); }
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        
+        body { 
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh; 
+            padding: 20px; 
+            color: white;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(138, 180, 248, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(163, 99, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .container { 
+            width: 90%; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            position: relative;
+            z-index: 2;
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        .title-card { 
+            background: linear-gradient(135deg, rgba(138, 180, 248, 0.15) 0%, rgba(163, 99, 255, 0.15) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 30px; 
+            padding: 60px 40px; 
+            text-align: center; 
+            margin-bottom: 40px; 
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: glow 3s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .title-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent 30%,
+                rgba(255, 255, 255, 0.03) 50%,
+                transparent 70%
+            );
+            animation: shimmer 3s linear infinite;
+        }
+        
+        .title-card h1 { 
+            font-size: 56px; 
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #8ab4f8 0%, #a363ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            position: relative;
+        }
+        
+        .title-card .emoji {
+            display: inline-block;
+            animation: float 3s ease-in-out infinite;
+            font-size: 64px;
+            margin-bottom: 10px;
+        }
+        
+        .title-card p { 
+            color: #c4d0ff; 
+            font-size: 20px;
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+            gap: 20px;
+        }
+        
+        .stat-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #8ab4f8;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #a0b0cc;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .button-card { 
+            background: linear-gradient(135deg, rgba(20, 20, 35, 0.95) 0%, rgba(30, 30, 50, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 30px; 
+            padding: 50px; 
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+        }
+        
+        .btn { 
+            padding: 30px 20px; 
+            border: none; 
+            border-radius: 20px; 
+            font-size: 20px; 
+            font-weight: 700; 
+            cursor: pointer; 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            text-decoration: none; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid transparent;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn:hover { 
+            transform: translateY(-8px) scale(1.02); 
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(-4px) scale(0.98);
+        }
+        
+        .btn-icon {
+            font-size: 48px;
+            display: block;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            position: relative;
+            z-index: 1;
+        }
+        
+        .btn-text {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .btn-capture { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+        }
+        
+        .btn-capture:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+        
+        .btn-train { 
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
+            color: white; 
+        }
+        
+        .btn-train:hover {
+            border-color: rgba(56, 239, 125, 0.5);
+        }
+        
+        .btn-recognize { 
+            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%); 
+            color: white; 
+        }
+        
+        .btn-recognize:hover {
+            border-color: rgba(238, 9, 121, 0.5);
+        }
+        
+        .btn-emotion { 
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+            color: white; 
+        }
+        
+        .btn-emotion:hover {
+            border-color: rgba(240, 147, 251, 0.5);
+        }
+        
+        .btn-manage { 
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); 
+            color: white; 
+        }
+        
+        .btn-manage:hover {
+            border-color: rgba(250, 112, 154, 0.5);
+        }
 
-        .footer { text-align: center; margin-top: 20px; color: #778899; font-size: 14px; }
-        .version { position: fixed; bottom: 10px; right: 10px; color: #666; font-size: 10px; }
+        .footer { 
+            text-align: center; 
+            margin-top: 40px; 
+            color: #8a9bb5; 
+            font-size: 14px;
+            padding: 20px;
+            background: rgba(20, 20, 35, 0.5);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .footer-links {
+            margin-top: 10px;
+        }
+        
+        .footer-links a {
+            color: #8ab4f8;
+            text-decoration: none;
+            margin: 0 10px;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: #c4d0ff;
+        }
+        
+        .version { 
+            position: fixed; 
+            bottom: 15px; 
+            right: 15px; 
+            background: rgba(20, 20, 35, 0.9);
+            color: #8ab4f8; 
+            font-size: 11px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(138, 180, 248, 0.3);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+        
+        @media (max-width: 768px) {
+            .title-card h1 { font-size: 36px; }
+            .button-card { grid-template-columns: 1fr; padding: 30px; }
+            .stats-bar { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="title-card">
-            <h1>🎯 FacePass</h1>
-            <p>Advanced Face Recognition System</p>
+            <div class="emoji">🎯</div>
+            <h1>FacePass</h1>
+            <p>Next-Gen Face Recognition System</p>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-value">512D</div>
+                    <div class="stat-label">Embeddings</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">0.65+</div>
+                    <div class="stat-label">Accuracy</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">Real-time</div>
+                    <div class="stat-label">Processing</div>
+                </div>
+            </div>
         </div>
         <div class="button-card">
-            <a href="/capture" class="btn btn-capture">📸 Capture Faces</a>
-            <a href="/train" class="btn btn-train">🧠 Train Model</a>
-            <a href="/recognize" class="btn btn-recognize">🔍 Start Recognition</a>
-            <a href="/manage" class="btn btn-manage">📊 Manage Data</a>
+            <a href="/capture" class="btn btn-capture">
+                <span class="btn-icon">📸</span>
+                <span class="btn-text">Capture Faces</span>
+            </a>
+            <a href="/train" class="btn btn-train">
+                <span class="btn-icon">🧠</span>
+                <span class="btn-text">Train Model</span>
+            </a>
+            <a href="/recognize" class="btn btn-recognize">
+                <span class="btn-icon">🔍</span>
+                <span class="btn-text">Recognize</span>
+            </a>
+            <a href="/emotion" class="btn btn-emotion">
+                <span class="btn-icon">😊</span>
+                <span class="btn-text">Emotion Tracking</span>
+            </a>
+            <a href="/age_gender" class="btn btn-age" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <span class="btn-icon">⚥</span>
+                <span class="btn-text">Gender Detection</span>
+            </a>
+            <a href="/manage" class="btn btn-manage">
+                <span class="btn-icon">📊</span>
+                <span class="btn-text">Manage Data</span>
+            </a>
+            {% if session.get('role') == 'admin' %}
+            <a href="/users" class="btn btn-manage" style="background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);">
+                <span class="btn-icon">👤</span>
+                <span class="btn-text">Create Users</span>
+            </a>
+            {% endif %}
         </div>
-        <div class="footer">Powered by face-api.js & Flask</div>
+        <div class="footer">
+            <div>Powered by InsightFace • ArcFace • Python Flask</div>
+            <div class="footer-links">
+                <a href="/system_info_page">System Info</a> • 
+                <a href="/statistics">Statistics</a> • 
+                <a href="/debug_data">Debug API</a>
+            </div>
+        </div>
     </div>
-    <div class="version">v2.0-clean</div>
+    <div class="version">v3.0-enhanced</div>
 </body>
 </html>

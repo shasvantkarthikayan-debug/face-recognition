@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Information - FacePass</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, rgba(138, 180, 248, 0.2) 0%, rgba(163, 99, 255, 0.2) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+        
+        .back-btn {
+            position: absolute;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-50%) translateX(-5px);
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #c4d0ff;
+            font-size: 16px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .info-card {
+            background: linear-gradient(135deg, rgba(20, 20, 35, 0.95) 0%, rgba(30, 30, 50, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+            border-color: rgba(138, 180, 248, 0.3);
+        }
+        
+        .card-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #8ab4f8;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-icon {
+            font-size: 28px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #a0b0cc;
+            font-size: 14px;
+        }
+        
+        .info-value {
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        
+        .status-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .status-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .status-error {
+            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 20px;
+            color: #8ab4f8;
+        }
+        
+        .loading::after {
+            content: '...';
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: block;
+            margin: 20px auto;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-btn">← Back</a>
+            <h1>🖥️ System Information</h1>
+            <p>FacePass Configuration & Status</p>
+        </div>
+        
+        <div id="content">
+            <div class="loading">Loading system information</div>
+        </div>
+        
+        <button class="refresh-btn" onclick="loadInfo()">🔄 Refresh</button>
+    </div>
+    
+    <script>
+        async function loadInfo() {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">Loading system information</div>';
+            
+            try {
+                const response = await fetch('/system_info');
+                const data = await response.json();
+                
+                content.innerHTML = `
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="card-title">
+                                <span class="card-icon">💻</span>
+                                <span>System</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Platform</span>
+                                <span class="info-value">${data.system.platform}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Python Version</span>
+                                <span class="info-value">${data.system.python_version}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OpenCV Version</span>
+                                <span class="info-value">${data.system.opencv_version}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <div class="card-title">
+                                <span class="card-icon">🤖</span>
+                                <span>AI Models</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">InsightFace</span>
+                                <span class="info-value">
+                                    <span class="status-badge ${data.models.insightface_available ? 'status-success' : 'status-error'}">
+                                        ${data.models.insightface_available ? '✓ Active' : '✗ Inactive'}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Model Name</span>
+                                <span class="info-value">${data.models.model_name}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Description</span>
+                                <span class="info-value">${data.models.model_description}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">MediaPipe</span>
+                                <span class="info-value">
+                                    <span class="status-badge ${data.models.mediapipe_available ? 'status-success' : 'status-warning'}">
+                                        ${data.models.mediapipe_available ? '✓ Available' : 'Disabled'}
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <div class="card-title">
+                                <span class="card-icon">⚙️</span>
+                                <span>Configuration</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Match Threshold</span>
+                                <span class="info-value">${data.config.threshold.toFixed(2)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Margin Threshold</span>
+                                <span class="info-value">${data.config.second_best_margin.toFixed(2)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Min Training Samples</span>
+                                <span class="info-value">${data.config.min_samples_for_training}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Embedding Dimension</span>
+                                <span class="info-value">${data.config.embedding_dimension}D</span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <div class="card-title">
+                                <span class="card-icon">📊</span>
+                                <span>Database</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Total People</span>
+                                <span class="info-value">${data.database.total_people}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Total Samples</span>
+                                <span class="info-value">${data.database.total_samples}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Training Status</span>
+                                <span class="info-value">
+                                    <span class="status-badge ${data.database.is_trained ? 'status-success' : 'status-warning'}">
+                                        ${data.database.is_trained ? '✓ Trained' : 'Not Trained'}
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="info-card" style="text-align: center; padding: 60px;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                        <h2 style="color: #ff6a00; margin-bottom: 10px;">Error Loading Information</h2>
+                        <p style="color: #a0b0cc;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Load info on page load
+        loadInfo();
+    </script>
+</body>
+</html>

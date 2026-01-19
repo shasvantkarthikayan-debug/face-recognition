@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capture Tips - FacePass</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, rgba(138, 180, 248, 0.2) 0%, rgba(163, 99, 255, 0.2) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .tips-grid {
+            display: grid;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .tip-card {
+            background: linear-gradient(135deg, rgba(20, 20, 35, 0.95) 0%, rgba(30, 30, 50, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tip-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #8ab4f8;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tip-content {
+            color: #c4d0ff;
+            line-height: 1.8;
+        }
+        
+        .tip-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .tip-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        .tip-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #38ef7d;
+            font-weight: bold;
+        }
+        
+        .angle-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .angle-item {
+            background: rgba(138, 180, 248, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(138, 180, 248, 0.2);
+        }
+        
+        .angle-emoji {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        
+        .angle-label {
+            font-size: 14px;
+            color: #8ab4f8;
+        }
+        
+        .back-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 Capture Tips for Best Recognition</h1>
+            <p>Follow these guidelines for optimal face recognition accuracy</p>
+        </div>
+        
+        <div class="tips-grid">
+            <div class="tip-card">
+                <div class="tip-title">
+                    <span>🎯</span>
+                    <span>Multiple Angles (MOST IMPORTANT)</span>
+                </div>
+                <div class="tip-content">
+                    <p style="margin-bottom: 15px;">Capture at least 8-10 photos from different angles:</p>
+                    <div class="angle-grid">
+                        <div class="angle-item">
+                            <div class="angle-emoji">😀</div>
+                            <div class="angle-label">Front<br>(2-3 photos)</div>
+                        </div>
+                        <div class="angle-item">
+                            <div class="angle-emoji">🙂</div>
+                            <div class="angle-label">Left Turn<br>(2 photos)</div>
+                        </div>
+                        <div class="angle-item">
+                            <div class="angle-emoji">😊</div>
+                            <div class="angle-label">Right Turn<br>(2 photos)</div>
+                        </div>
+                        <div class="angle-item">
+                            <div class="angle-emoji">😌</div>
+                            <div class="angle-label">Up Tilt<br>(1-2 photos)</div>
+                        </div>
+                        <div class="angle-item">
+                            <div class="angle-emoji">🤗</div>
+                            <div class="angle-label">Down Tilt<br>(1-2 photos)</div>
+                        </div>
+                        <div class="angle-item">
+                            <div class="angle-emoji">😄</div>
+                            <div class="angle-label">Smiling<br>(1-2 photos)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-title">
+                    <span>💡</span>
+                    <span>Lighting Conditions</span>
+                </div>
+                <div class="tip-content">
+                    <ul class="tip-list">
+                        <li>Use natural, even lighting when possible</li>
+                        <li>Avoid harsh shadows on face</li>
+                        <li>Not too bright (no overexposure)</li>
+                        <li>Not too dark (face should be clearly visible)</li>
+                        <li>Capture in different lighting if you'll use the system in varied conditions</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-title">
+                    <span>🎭</span>
+                    <span>Facial Expressions</span>
+                </div>
+                <div class="tip-content">
+                    <ul class="tip-list">
+                        <li>Include both neutral and smiling expressions</li>
+                        <li>Keep eyes open and looking at camera</li>
+                        <li>Avoid extreme expressions (very wide mouth, squinting)</li>
+                        <li>Natural, relaxed face works best</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-title">
+                    <span>📏</span>
+                    <span>Distance & Positioning</span>
+                </div>
+                <div class="tip-content">
+                    <ul class="tip-list">
+                        <li>Face should fill 60-80% of the frame</li>
+                        <li>Not too close (image may blur)</li>
+                        <li>Not too far (lose facial details)</li>
+                        <li>Keep face centered in frame</li>
+                        <li>Ensure entire face is visible</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-title">
+                    <span>🚫</span>
+                    <span>Things to Avoid</span>
+                </div>
+                <div class="tip-content">
+                    <ul class="tip-list">
+                        <li>Motion blur (stay still when capturing)</li>
+                        <li>Reflections from glasses (tilt slightly if needed)</li>
+                        <li>Heavy makeup that changes facial features</li>
+                        <li>Hats or items covering forehead/face</li>
+                        <li>Backlighting (light source behind you)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-title">
+                    <span>🔄</span>
+                    <span>After Capturing</span>
+                </div>
+                <div class="tip-content">
+                    <ul class="tip-list">
+                        <li>Train the model immediately after adding new faces</li>
+                        <li>Test recognition from different angles</li>
+                        <li>Add more photos if recognition fails</li>
+                        <li>Aim for 10-15 photos per person for best results</li>
+                        <li>Retrain after adding significant new samples</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="/capture" class="back-btn">📸 Start Capturing</a>
+        </div>
+    </div>
+</body>
+</html>

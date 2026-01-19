@@ -540,17 +540,21 @@
                 
                 console.log('Backend response:', result);
 
-                // Use backend response directly - NO SMOOTHING
+                // Stabilize identity + confidence (prevents flicker and avoids undefined vars)
                 const identity = result.identity || 'Unknown';
-                const rawSimilarity = result.similarity || 0;
-                const similarity = (rawSimilarity * 100).toFixed(1);
+                const rawSimilarity = Number(result.similarity || 0);
                 const category = result.category || 'N/A';
-                const isKnown = identity !== 'Unknown';
+
+                const stableIdentity = getStableIdentity(identity);
+                const smoothedSimilarity = getSmoothedSimilarity(rawSimilarity);
+                const similarityPct = (smoothedSimilarity * 100).toFixed(1);
+                const isKnown = stableIdentity !== 'Unknown';
+                const displayCategory = isKnown ? category : 'N/A';
 
                 console.log('Final display:', {
-                    identity: identity,
-                    category: category,
-                    similarity: similarity + '%',
+                    identity: stableIdentity,
+                    category: displayCategory,
+                    similarity: similarityPct + '%',
                     isKnown: isKnown
                 });
 
@@ -559,21 +563,21 @@
                 
                 document.getElementById('result').innerHTML = 
                     `${statusIcon} <strong>${statusText}</strong><br>` +
-                    `<div class="identity">${identity}</div>` +
-                    `📊 Confidence: ${similarity}%` +
-                    `<div class="category">Category: ${category}</div>`;
+                    `<div class="identity">${stableIdentity}</div>` +
+                    `📊 Confidence: ${similarityPct}%` +
+                    `<div class="category">Category: ${displayCategory}</div>`;
 
                 lastRecognitionResult = {
-                    identity: identity,
-                    category: category,
-                    similarity: similarity,
+                    identity: stableIdentity,
+                    category: displayCategory,
+                    similarity: similarityPct,
                     isKnown: isKnown
                 };
                 
                 console.log('lastRecognitionResult updated:', lastRecognitionResult);
 
                 currentIdentity = stableIdentity;
-                currentCategory = category;
+                currentCategory = displayCategory;
                 currentSimilarity = smoothedSimilarity;
                 lastUpdateTime = Date.now();
 

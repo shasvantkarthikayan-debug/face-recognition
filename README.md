@@ -132,9 +132,30 @@ Visit: **http://127.0.0.1:5000**
 
 ## 🔧 Configuration
 
-**Match Threshold** (in `app.py`):
-```python
-FACE_MATCH_THRESHOLD = 0.50  # Cosine similarity threshold
+### Login credentials
+
+Create users (recommended):
+
+```powershell
+.\.venv\Scripts\python.exe scripts\user_admin.py create --username alice --role admin
+```
+
+This creates/updates `data/users.json` with a hashed password.
+
+Back-compat single-user login (optional):
+
+```powershell
+setx FACEPASS_USER "admin"
+setx FACEPASS_PASS "your-strong-password"
+```
+
+### Match threshold
+
+Tune without code changes (environment variables):
+
+```powershell
+setx FACE_MATCH_THRESHOLD "0.70"
+setx SECOND_BEST_MARGIN "0.10"
 ```
 
 - **0.50-0.70**: Lenient (handles pose variations)
